@@ -1,10 +1,13 @@
 import express from 'express';
 import * as path from 'path';
 import { prismaClient } from './utils/database';
+import { userRoutes } from './routes/user.routes';
 
 const app = express();
 
 app.use('/assets', express.static(path.join(__dirname, 'assets')));
+
+app.use('/user', userRoutes)
 
 app.get('/api', (req, res) => {
   res.send({ message: 'Welcome to backend!' });
