@@ -9,7 +9,6 @@ export const newUserInputValidator = z.object({
 }) satisfies z.Schema<Prisma.UserCreateInput>
 
 export const updateUserRequestBodyValidator = z.object({
-  id: z.number(),
   name: z.optional(z.string()),
   email: z.optional(z.string()),
   password: z.optional(z.string()),

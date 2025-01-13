@@ -14,26 +14,25 @@ export class UserController {
   async getUsers(_req: Request, res: Response<User[] | ErrorResponse>) {
     try {
       const users = await getAllUsers();
-      res.status(200).json(users);
+      return res.status(200).json(users);
     } catch (error) {
       if (error instanceof Error) {
-        res.status(500).json({ error: error.message });
+        return res.status(500).json({ error: error.message });
       }
     }
   }
 
   async getSingleUser(req: Request, res: Response<User | ErrorResponse>) {
-    if (!req.params.userId) {
-      res.status(400).json({ error: 'User ID is required' });
-      return;
+    if (!req.params?.userId) {
+      return res.status(400).json({ error: 'User ID is required' });
     }
 
     try {
       const user = await getUserById(Number(req.params.userId));
-      res.status(200).json(user);
+      return res.status(200).json(user);
     } catch (error) {
       if (error instanceof Error) {
-        res.status(500).json({ error: error.message });
+        return res.status(500).json({ error: error.message });
       }
     }
   }
@@ -43,16 +42,15 @@ export class UserController {
     res: Response<User | ErrorResponse>
   ) {
     if (!req.body) {
-      res.status(400).json({ error: 'Request body is required' });
-      return;
+      return res.status(400).json({ error: 'Request body is required' });
     }
 
     try {
       const user = await createNewUser(req.body);
-      res.status(201).json(user);
+      return res.status(201).json(user);
     } catch (error) {
       if (error instanceof Error) {
-        res.status(500).json({ error: error.message });
+        return res.status(500).json({ error: error.message });
       }
     }
   }
@@ -61,33 +59,35 @@ export class UserController {
     req: TypedRequestBody<UpdateUserInput>,
     res: Response<User | ErrorResponse>
   ) {
-    if (!req.params.userId) {
-      res.status(400).json({ error: 'User ID is required' });
-      return;
+    if (!req.params?.userId) {
+      return res.status(400).json({ error: 'User ID is required' });
+    }
+
+    if(!req?.body) {
+      return res.status(400).json({ error: 'Request body is required' });
     }
 
     try {
-      const user = await updateExistingUser(req.body.id, req.body);
-      res.status(200).json(user);
+      const user = await updateExistingUser(Number(req.params.userId), req.body);
+      return res.status(200).json(user);
     } catch (error) {
       if (error instanceof Error) {
-        res.status(500).json({ error: error.message });
+        return res.status(500).json({ error: error.message });
       }
     }
   }
 
   async deleteUser(req: Request, res: Response<User | ErrorResponse>) {
-    if (!req.params.userId) {
-      res.status(400).json({ error: 'User ID is required' });
-      return;
+    if (!req.params?.userId) {
+      return res.status(400).json({ error: 'User ID is required' });
     }
 
     try {
-      const user = await deleteUserById(req.body.id);
-      res.status(200).json(user);
+      const user = await deleteUserById(Number(req.params.userId));
+      return res.status(200).json(user);
     } catch (error) {
       if (error instanceof Error) {
-        res.status(500).json({ error: error.message });
+        return res.status(500).json({ error: error.message });
       }
     }
   }

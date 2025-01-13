@@ -1,12 +1,12 @@
 import { ZodSchema, ZodError, ZodIssue } from 'zod';
-import { ErrorResponse, TypedRequestBody } from '../types/global';
+import { TypedRequestBody } from '../types/global';
 import { NextFunction, Response } from 'express';
 
 type validateRequestBodyType = <T>(
   schema: ZodSchema
 ) => (
   req: TypedRequestBody<T>,
-  res: Response<ErrorResponse>,
+  res: Response,
   next: NextFunction
 ) => Promise<void>;
 
@@ -14,7 +14,7 @@ export const validateRequestInput: validateRequestBodyType =
   <T>(schema: ZodSchema) =>
     async (
       req: TypedRequestBody<T>,
-      res: Response<ErrorResponse>,
+      res: Response,
       next: NextFunction
     ): Promise<void> => {
       try {
