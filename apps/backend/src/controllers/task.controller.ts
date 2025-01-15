@@ -1,5 +1,5 @@
 import { ErrorResponse, TypedRequestBody } from '../types/global';
-import { NewTaskInput, UpdateTaskInput } from '../types/http/user.http';
+import { NewTaskInput, UpdateTaskInput } from '../types/http/task.http';
 import { Task } from '@prisma/client';
 import { Request, Response } from 'express';
 import * as taskService from '../services/task.service';

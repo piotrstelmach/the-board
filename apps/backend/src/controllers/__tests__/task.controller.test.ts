@@ -1,7 +1,7 @@
 import { TaskController } from '../task.controller';
 import * as taskService from '../../services/task.service';
 import { Request, Response } from 'express';
-import { NewTaskInput, UpdateTaskInput } from '../../types/http/user.http';
+import { NewTaskInput, UpdateTaskInput } from '../../types/http/task.http';
 import { Task, TaskPriority, TaskStatus } from '@prisma/client';
 import { ErrorResponse, TypedRequestBody } from '../../types/global';
 
