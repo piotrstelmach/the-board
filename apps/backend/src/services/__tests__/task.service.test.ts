@@ -1,6 +1,6 @@
 import { prismaClient } from '../../utils/database';
 import { Task } from '@prisma/client';
-import { NewTaskInput, UpdateTaskInput } from '../../types/http/user.http';
+import { NewTaskInput, UpdateTaskInput } from '../../types/http/task.http';
 import * as taskService from '../task.service';
 
 jest.mock('../../utils/database', () => ({

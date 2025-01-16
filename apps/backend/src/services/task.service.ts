@@ -1,5 +1,5 @@
 import { prismaClient } from '../utils/database';
-import { NewTaskInput, UpdateTaskInput } from '../types/http/user.http';
+import { NewTaskInput, UpdateTaskInput } from '../types/http/task.http';
 
 export const getAllTasks = async () => {
   return prismaClient.task.findMany();
