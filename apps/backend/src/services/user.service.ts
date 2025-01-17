@@ -20,6 +20,20 @@ export const getUserById= async (userId: number): Promise<User> => {
   }
 };
 
+export const getUserByEmail = async (email: string): Promise<User> => {
+  const user: User | null = await prismaClient.user.findUnique({
+    where: {
+      email: email,
+    },
+  });
+
+  if (!user) {
+    throw new Error('User not found');
+  } else {
+    return user;
+  }
+}
+
 export const createNewUser = (data: NewUserInput): Promise<User> => {
   return prismaClient.user.create({
     data: {
