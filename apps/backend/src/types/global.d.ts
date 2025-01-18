@@ -1,8 +1,9 @@
 import { ParamsDictionary } from 'express-serve-static-core';
+import express from 'express';
 
-export interface TypedRequestBody<T> extends Express.Request {
+export interface TypedRequestBody<T> extends express.Request {
   body: T;
-  params: ParamsDictionary
+  params: ParamsDictionary,
 }
 
 export type TypedResponse<T> = Omit<express.Response, 'json' | 'status'> & {

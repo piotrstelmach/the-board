@@ -1,4 +1,7 @@
-import { RegisterUserInput } from '../types/http/authentication.http';
+import {
+  LoginUserInput,
+  RegisterUserInput,
+} from '../types/http/authentication.http';
 import * as userService from './user.service';
 import { User } from '@prisma/client';
 import { saltRounds } from '../config/passwd';
@@ -19,18 +22,18 @@ export const registerNewUser: (
 ) => Promise<AuthUserResult | undefined> = async (
   data: RegisterUserInput
 ): Promise<AuthUserResult | undefined> => {
-    const hashedPassword = await hashPassword(data.password);
-    return (await userService.createNewUser({
-      ...data,
-      password: hashedPassword,
-      roles: DEFAULT_ROLE,
-    })) as AuthUserResult;
+  const hashedPassword = await hashPassword(data.password);
+  return await userService.createNewUser({
+    ...data,
+    password: hashedPassword,
+    roles: DEFAULT_ROLE,
+  });
 };
 
 export const loginUser: (
-  data: RegisterUserInput
+  data: LoginUserInput
 ) => Promise<AuthUserResult | undefined> = async (
-  data: RegisterUserInput
+  data: LoginUserInput
 ): Promise<AuthUserResult | undefined> => {
   const user: User = await userService.getUserByEmail(data.email);
   const matchPassword = await bcrypt.compare(data.password, user.password);
@@ -40,7 +43,3 @@ export const loginUser: (
     throw new Error('Invalid password');
   }
 };
-
-export const logoutUser = async (): Promise<void> => {
-  //TODO: Implement logout
-}

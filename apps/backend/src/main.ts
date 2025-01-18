@@ -1,6 +1,7 @@
 import express from 'express';
 import * as path from 'path';
 import { prismaClient } from './utils/database';
+import cookieParser from 'cookie-parser';
 import { userRoutes } from './routes/user.routes';
 import { taskRoutes } from './routes/task.routes';
 import { sprintRoutes } from './routes/sprint.routes';
@@ -10,6 +11,8 @@ import { authenticationRoutes } from './routes/authentication.routes';
 const app = express();
 
 app.use('/assets', express.static(path.join(__dirname, 'assets')));
+app.use(express.json());
+app.use(cookieParser());
 
 app.use('/user', userRoutes)
 app.use('/task', taskRoutes)
