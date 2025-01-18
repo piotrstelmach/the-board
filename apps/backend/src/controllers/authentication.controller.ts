@@ -14,7 +14,7 @@ export class AuthenticationController {
   ) {
     try {
       const user = await authService.registerNewUser(req.body);
-      //TODO: Implement session management
+      //TODO: Implement JWT authentication check
       res.status(200).send(user);
     } catch (e) {
       if (e instanceof Error) {
@@ -29,7 +29,7 @@ export class AuthenticationController {
   ) {
     try {
       const user = await authService.loginUser(req.body);
-      //TODO: Implement session management
+      //TODO: Implement JWT authentication check
       res.status(200).send(user);
     } catch (e) {
       if (e instanceof Error) {
