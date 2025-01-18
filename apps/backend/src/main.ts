@@ -5,6 +5,7 @@ import { userRoutes } from './routes/user.routes';
 import { taskRoutes } from './routes/task.routes';
 import { sprintRoutes } from './routes/sprint.routes';
 import { userStoryRoutes } from './routes/userStory.routes';
+import { authenticationRoutes } from './routes/authentication.routes';
 
 const app = express();
 
@@ -14,6 +15,7 @@ app.use('/user', userRoutes)
 app.use('/task', taskRoutes)
 app.use('/sprint', sprintRoutes)
 app.use('/userStory', userStoryRoutes)
+app.use('/auth', authenticationRoutes)
 
 app.get('/api', (req, res) => {
   res.send({ message: 'Welcome to backend!' });
