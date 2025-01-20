@@ -1,6 +1,7 @@
 import { validateRequestInput } from '../validateRequestInput';
 import { TypedRequestBody } from '../../types/global';
 import { ZodSchema, ZodError } from 'zod';
+import { Request } from 'express';
 
 type RequestMockType = {
   name: string;
@@ -25,7 +26,7 @@ describe('validateRequestInput Middleware', () => {
         email: 'myexample@gmail.com',
       },
       params: {},
-    };
+    } as Request;
     schema = {
       parseAsync: jest.fn().mockResolvedValue(req.body),
     } as any;
