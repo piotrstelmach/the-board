@@ -85,6 +85,9 @@ export const deleteUserById = async (userId: number): Promise<User> => {
   }
 }
 
+//TODO: Add proper role verification
+//TODO: Add remove role function
+
 export const changeUserRole = async (userId: number, newRole: number): Promise<User> => {
   const user: User | null = await prismaClient.user.findUnique({
     where: {
@@ -100,7 +103,7 @@ export const changeUserRole = async (userId: number, newRole: number): Promise<U
         id: userId,
       },
       data: {
-        roles: newRole,
+        roles: user.roles | newRole,
       },
     });
   }
