@@ -4,18 +4,12 @@ import {
 } from '../types/http/authentication.http';
 import * as userService from './user.service';
 import { User } from '@prisma/client';
-import { saltRounds } from '../config/passwd';
 import bcrypt from 'bcrypt';
+import { hashPassword } from '../utils/passwd';
 
 const DEFAULT_ROLE = 1;
 
 export type AuthUserResult = Omit<User, 'password'>;
-
-const hashPassword: (originalPassword: string) => Promise<string> = async (
-  originalPassword: string
-) => {
-  return await bcrypt.hash(originalPassword, saltRounds);
-};
 
 export const registerNewUser: (
   data: RegisterUserInput

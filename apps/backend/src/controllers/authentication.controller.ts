@@ -27,11 +27,9 @@ export class AuthenticationController {
     res: Response<TokenResponse | ErrorResponse>
   ) {
     try {
-      console.log('register user controller')
       const user: AuthUserResult | undefined =
         await authService.registerNewUser(req.body);
       if (user) {
-        console.log('user', user)
         const payload: TokenPayload = { user_id: user.id };
         const accessToken: string = jwt.sign(payload, getJwtSecret(), {
           expiresIn: getJwtExpiration(),

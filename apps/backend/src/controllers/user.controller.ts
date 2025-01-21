@@ -1,5 +1,5 @@
 import { ErrorResponse, TypedRequestBody } from '../types/global';
-import { NewUserInput, UpdateUserInput } from '../types/http/user.http';
+import { GiveRoleInput, NewUserInput, UpdateUserInput } from '../types/http/user.http';
 import { Request, Response } from 'express';
 import {
   createNewUser,
@@ -90,5 +90,9 @@ export class UserController {
         return res.status(500).json({ error: error.message });
       }
     }
+  }
+
+  async giveUserRole(req: TypedRequestBody<GiveRoleInput>, res: Response<User | ErrorResponse>) {
+
   }
 }
