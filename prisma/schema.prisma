@@ -120,3 +120,9 @@ enum StoryStatus {
   COMPLETED
   CANCELLED
 }
+
+enum Role {
+  DEVELOPER
+  SCRUM_MASTER
+  PRODUCT_OWNER
+}
