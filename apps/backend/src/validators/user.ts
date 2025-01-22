@@ -16,7 +16,6 @@ export const updateUserRequestBodyValidator = z.object({
 }) satisfies z.Schema<Prisma.UserUpdateInput>
 
 export const giveRoleInputValidator = z.object({
-  userId: z.number(),
   roles: z.number().gte(1, "Invalid role").lte(4, "Invalid role"),
 }) satisfies z.Schema<Prisma.UserUpdateInput>
 

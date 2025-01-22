@@ -2,6 +2,7 @@ import { prismaClient } from '../../utils/database';
 import { User } from '@prisma/client';
 import { NewUserInput, UpdateUserInput } from '../../types/http/user.http';
 import * as userService from '../user.service';
+import { hashPassword } from '../../utils/passwd';
 
 jest.mock('../../utils/database', () => ({
   prismaClient: {
@@ -15,16 +16,24 @@ jest.mock('../../utils/database', () => ({
   },
 }));
 
+jest.mock('../../utils/passwd', () => ({
+  hashPassword: jest.fn(),
+}));
+
 describe('UserService', () => {
   const exampleUser: User = {
     id: 1,
     name: 'John Doe',
     email: 'john@example.com',
-    password: 'password',
+    password: 'hashedPassword',
     roles: 1,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
+
+  beforeEach(() => {
+    (hashPassword as jest.Mock).mockResolvedValue('hashedPassword');
+  });
 
   describe('getAllUsers', () => {
     it('should return all users', async () => {
@@ -61,7 +70,7 @@ describe('UserService', () => {
 
       const user = await userService.createNewUser(newUserInput);
 
-      expect(prismaClient.user.create).toHaveBeenCalledWith({ data: newUserInput });
+      expect(prismaClient.user.create).toHaveBeenCalledWith({ data: { ...newUserInput, password: 'hashedPassword' } });
       expect(user).toEqual(exampleUser);
     });
   });
@@ -102,6 +111,27 @@ describe('UserService', () => {
       (prismaClient.user.findUnique as jest.Mock).mockResolvedValue(null);
 
       await expect(userService.deleteUserById(1)).rejects.toThrow('User not found');
+    });
+  });
+
+  describe('changeUserRole', () => {
+    it('should change the user role', async () => {
+      const newRole = 2;
+      const updatedUser = { ...exampleUser, roles: newRole };
+      (prismaClient.user.findUnique as jest.Mock).mockResolvedValue(exampleUser);
+      (prismaClient.user.update as jest.Mock).mockResolvedValue(updatedUser);
+
+      const user = await userService.changeUserRole(1, newRole);
+
+      expect(prismaClient.user.findUnique).toHaveBeenCalledWith({ where: { id: 1 } });
+      expect(prismaClient.user.update).toHaveBeenCalledWith({ where: { id: 1 }, data: { roles: newRole } });
+      expect(user).toEqual(updatedUser);
+    });
+
+    it('should throw an error if user not found', async () => {
+      (prismaClient.user.findUnique as jest.Mock).mockResolvedValue(null);
+
+      await expect(userService.changeUserRole(1, 2)).rejects.toThrow('User not found');
     });
   });
 });

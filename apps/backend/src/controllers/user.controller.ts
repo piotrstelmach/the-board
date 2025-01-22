@@ -2,11 +2,12 @@ import { ErrorResponse, TypedRequestBody } from '../types/global';
 import { GiveRoleInput, NewUserInput, UpdateUserInput } from '../types/http/user.http';
 import { Request, Response } from 'express';
 import {
+  changeUserRole,
   createNewUser,
   deleteUserById,
   getAllUsers,
   getUserById,
-  updateExistingUser,
+  updateExistingUser
 } from '../services/user.service';
 import { User } from '@prisma/client';
 
@@ -93,6 +94,21 @@ export class UserController {
   }
 
   async giveUserRole(req: TypedRequestBody<GiveRoleInput>, res: Response<User | ErrorResponse>) {
+    try {
+      if (!req.params?.userId) {
+        return res.status(400).json({ error: 'User ID is required' });
+      }
 
+      if (!req.body.roles) {
+        return res.status(400).json({ error: 'Roles are required' });
+      }
+
+      const updatedUser = await changeUserRole(Number(req.params?.userId), req.body.roles);
+      return res.status(200).json(updatedUser);
+    } catch (error) {
+      if (error instanceof Error) {
+        return res.status(500).json({ error: error.message });
+      }
+    }
   }
 }

@@ -1,23 +1,25 @@
+import { Request, Response } from 'express';
 import { UserController } from '../user.controller';
 import * as userService from '../../services/user.service';
-import { Request, Response } from 'express';
-import { NewUserInput, UpdateUserInput } from '../../types/http/user.http';
-import { TypedRequestBody } from '../../types/global';
 import { User } from '@prisma/client';
+import { NewUserInput, UpdateUserInput, GiveRoleInput } from '../../types/http/user.http';
+
+jest.mock('../../services/user.service');
 
 describe('UserController', () => {
+  let req: Partial<Request>;
+  let res: Partial<Response>;
+  let userController: UserController;
+
   const exampleUser: User = {
     id: 1,
     name: 'John Doe',
     email: 'john@example.com',
-    password: 'password',
+    password: 'hashedPassword',
     roles: 1,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
-
-  let req: Partial<Request>;
-  let res: Partial<Response>;
 
   beforeEach(() => {
     req = {};
@@ -25,40 +27,35 @@ describe('UserController', () => {
       status: jest.fn().mockReturnThis(),
       json: jest.fn(),
     };
+    userController = new UserController();
   });
 
   describe('getUsers', () => {
-    it('should get all users', async () => {
-      const users = [exampleUser, exampleUser, exampleUser];
-      jest.spyOn(userService, 'getAllUsers').mockResolvedValue(users);
+    it('should return all users', async () => {
+      (userService.getAllUsers as jest.Mock).mockResolvedValue([exampleUser]);
 
-      const userController = new UserController();
       await userController.getUsers(req as Request, res as Response);
 
       expect(userService.getAllUsers).toHaveBeenCalled();
       expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.json).toHaveBeenCalledWith(users);
+      expect(res.json).toHaveBeenCalledWith([exampleUser]);
     });
 
     it('should handle errors', async () => {
-      const error = new Error('Database error');
-      jest.spyOn(userService, 'getAllUsers').mockRejectedValue(error);
+      (userService.getAllUsers as jest.Mock).mockRejectedValue(new Error('Error'));
 
-      const userController = new UserController();
       await userController.getUsers(req as Request, res as Response);
 
-      expect(userService.getAllUsers).toHaveBeenCalled();
       expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith({ error: error.message });
+      expect(res.json).toHaveBeenCalledWith({ error: 'Error' });
     });
   });
 
   describe('getSingleUser', () => {
-    it('should get a single user', async () => {
+    it('should return a user by ID', async () => {
       req.params = { userId: '1' };
-      jest.spyOn(userService, 'getUserById').mockResolvedValue(exampleUser);
+      (userService.getUserById as jest.Mock).mockResolvedValue(exampleUser);
 
-      const userController = new UserController();
       await userController.getSingleUser(req as Request, res as Response);
 
       expect(userService.getUserById).toHaveBeenCalledWith(1);
@@ -66,8 +63,9 @@ describe('UserController', () => {
       expect(res.json).toHaveBeenCalledWith(exampleUser);
     });
 
-    it('should return 400 if userId is not provided', async () => {
-      const userController = new UserController();
+    it('should handle missing userId', async () => {
+      req.params = {};
+
       await userController.getSingleUser(req as Request, res as Response);
 
       expect(res.status).toHaveBeenCalledWith(400);
@@ -75,108 +73,108 @@ describe('UserController', () => {
     });
 
     it('should handle errors', async () => {
-      const error = new Error('Database error');
       req.params = { userId: '1' };
-      jest.spyOn(userService, 'getUserById').mockRejectedValue(error);
+      (userService.getUserById as jest.Mock).mockRejectedValue(new Error('Error'));
 
-      const userController = new UserController();
       await userController.getSingleUser(req as Request, res as Response);
 
-      expect(userService.getUserById).toHaveBeenCalledWith(1);
       expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith({ error: error.message });
+      expect(res.json).toHaveBeenCalledWith({ error: 'Error' });
     });
   });
 
   describe('createUser', () => {
     it('should create a new user', async () => {
       req.body = { name: 'John Doe', email: 'john@example.com', password: 'password', roles: 1 } as NewUserInput;
-      jest.spyOn(userService, 'createNewUser').mockResolvedValue(exampleUser);
+      (userService.createNewUser as jest.Mock).mockResolvedValue(exampleUser);
 
-      const userController = new UserController();
-      await userController.createUser(req as TypedRequestBody<NewUserInput>, res as Response);
+      await userController.createUser(req as Request, res as Response);
 
       expect(userService.createNewUser).toHaveBeenCalledWith(req.body);
       expect(res.status).toHaveBeenCalledWith(201);
       expect(res.json).toHaveBeenCalledWith(exampleUser);
     });
 
-    it('should return 400 if request body is not provided', async () => {
-      const userController = new UserController();
-      await userController.createUser(req as TypedRequestBody<NewUserInput>, res as Response);
+    it('should handle missing request body', async () => {
+      req.body = undefined;
+
+      await userController.createUser(req as Request, res as Response);
 
       expect(res.status).toHaveBeenCalledWith(400);
       expect(res.json).toHaveBeenCalledWith({ error: 'Request body is required' });
     });
 
     it('should handle errors', async () => {
-      const error = new Error('Database error');
-      req.body = { name: 'John Doe', email: 'john@example.com', password: 'password', roles: 1 };
-      jest.spyOn(userService, 'createNewUser').mockRejectedValue(error);
+      req.body = { name: 'John Doe', email: 'john@example.com', password: 'password', roles: 1 } as NewUserInput;
+      (userService.createNewUser as jest.Mock).mockRejectedValue(new Error('Error'));
 
-      const userController = new UserController();
-      await userController.createUser(req as TypedRequestBody<NewUserInput>, res as Response);
+      await userController.createUser(req as Request, res as Response);
 
-      expect(userService.createNewUser).toHaveBeenCalledWith(req.body);
       expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith({ error: error.message });
+      expect(res.json).toHaveBeenCalledWith({ error: 'Error' });
     });
   });
 
   describe('updateUser', () => {
     it('should update an existing user', async () => {
-      const updatedUser = { ...exampleUser, name: 'John Doe2' };
       req.params = { userId: '1' };
-      req.body = { name: 'John Doe2' } as UpdateUserInput;
-      jest.spyOn(userService, 'updateExistingUser').mockResolvedValue(updatedUser);
+      req.body = { name: 'John Doe2', email: 'john2@example.com' } as UpdateUserInput;
+      (userService.updateExistingUser as jest.Mock).mockResolvedValue({ ...exampleUser, ...req.body });
 
-      const userController = new UserController();
-      await userController.updateUser(req as TypedRequestBody<UpdateUserInput>, res as Response);
+      await userController.updateUser(req as Request, res as Response);
 
       expect(userService.updateExistingUser).toHaveBeenCalledWith(1, req.body);
       expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.json).toHaveBeenCalledWith(updatedUser);
+      expect(res.json).toHaveBeenCalledWith({ ...exampleUser, ...req.body });
     });
 
-    it('should return 400 if userId is not provided', async () => {
-      const userController = new UserController();
-      await userController.updateUser(req as TypedRequestBody<UpdateUserInput>, res as Response);
+    it('should handle missing userId', async () => {
+      req.params = {};
+      req.body = { name: 'John Doe2', email: 'john2@example.com' } as UpdateUserInput;
+
+      await userController.updateUser(req as Request, res as Response);
 
       expect(res.status).toHaveBeenCalledWith(400);
       expect(res.json).toHaveBeenCalledWith({ error: 'User ID is required' });
     });
 
-    it('should handle errors', async () => {
-      const error = new Error('Database error');
+    it('should handle missing request body', async () => {
       req.params = { userId: '1' };
-      req.body = { name: 'John Doe', email: 'john@example.com' } as UpdateUserInput;
-      jest.spyOn(userService, 'updateExistingUser').mockRejectedValue(error);
+      req.body = undefined;
 
-      const userController = new UserController();
-      await userController.updateUser(req as TypedRequestBody<UpdateUserInput>, res as Response);
+      await userController.updateUser(req as Request, res as Response);
 
-      expect(userService.updateExistingUser).toHaveBeenCalledWith(1, req.body);
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({ error: 'Request body is required' });
+    });
+
+    it('should handle errors', async () => {
+      req.params = { userId: '1' };
+      req.body = { name: 'John Doe2', email: 'john2@example.com' } as UpdateUserInput;
+      (userService.updateExistingUser as jest.Mock).mockRejectedValue(new Error('Error'));
+
+      await userController.updateUser(req as Request, res as Response);
+
       expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith({ error: error.message });
+      expect(res.json).toHaveBeenCalledWith({ error: 'Error' });
     });
   });
 
   describe('deleteUser', () => {
-    it('should delete a user', async () => {
-      const deletedUser = exampleUser;
+    it('should delete a user by ID', async () => {
       req.params = { userId: '1' };
-      jest.spyOn(userService, 'deleteUserById').mockResolvedValue(deletedUser);
+      (userService.deleteUserById as jest.Mock).mockResolvedValue(exampleUser);
 
-      const userController = new UserController();
       await userController.deleteUser(req as Request, res as Response);
 
       expect(userService.deleteUserById).toHaveBeenCalledWith(1);
       expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.json).toHaveBeenCalledWith(deletedUser);
+      expect(res.json).toHaveBeenCalledWith(exampleUser);
     });
 
-    it('should return 400 if userId is not provided', async () => {
-      const userController = new UserController();
+    it('should handle missing userId', async () => {
+      req.params = {};
+
       await userController.deleteUser(req as Request, res as Response);
 
       expect(res.status).toHaveBeenCalledWith(400);
@@ -184,16 +182,58 @@ describe('UserController', () => {
     });
 
     it('should handle errors', async () => {
-      const error = new Error('Database error');
       req.params = { userId: '1' };
-      jest.spyOn(userService, 'deleteUserById').mockRejectedValue(error);
+      (userService.deleteUserById as jest.Mock).mockRejectedValue(new Error('Error'));
 
-      const userController = new UserController();
       await userController.deleteUser(req as Request, res as Response);
 
-      expect(userService.deleteUserById).toHaveBeenCalledWith(1);
       expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith({ error: error.message });
+      expect(res.json).toHaveBeenCalledWith({ error: 'Error' });
+    });
+  });
+
+  describe('giveUserRole', () => {
+    it('should change the user role', async () => {
+      req.params = { userId: '1' };
+      req.body = { roles: 2 } as GiveRoleInput;
+      (userService.changeUserRole as jest.Mock).mockResolvedValue({ ...exampleUser, roles: 2 });
+
+      await userController.giveUserRole(req as Request, res as Response);
+
+      expect(userService.changeUserRole).toHaveBeenCalledWith(1, 2);
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({ ...exampleUser, roles: 2 });
+    });
+
+    it('should handle missing userId', async () => {
+      req.params = {};
+      req.body = { roles: 2 } as GiveRoleInput;
+
+      await userController.giveUserRole(req as Request, res as Response);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({ error: 'User ID is required' });
+    });
+
+    it('should handle missing roles', async () => {
+      req.params = { userId: '1' };
+      req.body = {} as GiveRoleInput;
+
+      await userController.giveUserRole(req as Request, res as Response);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({ error: 'Roles are required' });
+    });
+
+    it('should handle errors', async () => {
+      req.params = { userId: '1' };
+      req.body = { roles: 2 } as GiveRoleInput;
+      (userService.changeUserRole as jest.Mock).mockRejectedValue(new Error('Error'));
+
+      await userController.giveUserRole(req as Request, res as Response);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({ error: 'Error' });
     });
   });
 });
