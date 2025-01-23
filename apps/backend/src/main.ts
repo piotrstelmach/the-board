@@ -1,6 +1,7 @@
 import express from 'express';
 import * as path from 'path';
 import { prismaClient } from './utils/database';
+import { redisClient } from './utils/redisClient';
 import cookieParser from 'cookie-parser';
 import { userRoutes } from './routes/user.routes';
 import { taskRoutes } from './routes/task.routes';
@@ -28,6 +29,11 @@ const port = process.env.PORT || 3333;
 const server = app.listen(port, () => {
   console.log(`Listening at http://localhost:${port}/api`);
 });
+
+redisClient
+  .on('error', (error) => console.error(error))
+  .on('connect', () => console.log('Connected to Redis'))
+  .connect();
 
 prismaClient
   .$connect()
