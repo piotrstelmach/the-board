@@ -14,10 +14,6 @@ import {
   updateExistingUser,
 } from '../services/user.service';
 import { User } from '@prisma/client';
-import { redisClient } from '../utils/redisClient';
-import { mapRedisHash, saveToRedisHash } from '../utils/redisCache';
-
-const USER_CACHE_NAME = 'user';
 
 export class UserController {
   async getUsers(_req: Request, res: Response<User[] | ErrorResponse>) {
@@ -35,24 +31,12 @@ export class UserController {
     if (!req.params?.userId) {
       return res.status(400).json({ error: 'User ID is required' });
     }
-    const cache = await redisClient.hGetAll(
-      `${USER_CACHE_NAME}:${req.params?.userId}`
-    );
-    const cachedUser: User = mapRedisHash<User>(cache);
-    if (cachedUser) {
-      return res.status(200).json(cachedUser);
-    } else {
-      try {
-        const user = await getUserById(Number(req.params.userId));
-        await redisClient.hSet(
-          `${USER_CACHE_NAME}:${req.params.userId}`,
-          saveToRedisHash<User>(user)
-        );
-        return res.status(200).json(user);
-      } catch (error) {
-        if (error instanceof Error) {
-          return res.status(500).json({ error: error.message });
-        }
+    try {
+      const user = await getUserById(Number(req.params.userId));
+      return res.status(200).json(user);
+    } catch (error) {
+      if (error instanceof Error) {
+        return res.status(500).json({ error: error.message });
       }
     }
   }

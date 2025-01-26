@@ -2,9 +2,17 @@ import { Request, Response } from 'express';
 import { UserController } from '../user.controller';
 import * as userService from '../../services/user.service';
 import { User } from '@prisma/client';
-import { NewUserInput, UpdateUserInput, GiveRoleInput } from '../../types/http/user.http';
+import {
+  NewUserInput,
+  UpdateUserInput,
+  GiveRoleInput,
+} from '../../types/http/user.http';
+import { redisClient } from '../../utils/redisClient';
+import { mapRedisHash, saveToRedisHash } from '../../utils/redisCache';
 
 jest.mock('../../services/user.service');
+jest.mock('../../utils/redisClient');
+jest.mock('../../utils/redisCache');
 
 describe('UserController', () => {
   let req: Partial<Request>;
@@ -28,6 +36,11 @@ describe('UserController', () => {
       json: jest.fn(),
     };
     userController = new UserController();
+    jest.clearAllMocks();
+  });
+
+  afterAll(async () => {
+    await redisClient.quit();
   });
 
   describe('getUsers', () => {
@@ -42,7 +55,9 @@ describe('UserController', () => {
     });
 
     it('should handle errors', async () => {
-      (userService.getAllUsers as jest.Mock).mockRejectedValue(new Error('Error'));
+      (userService.getAllUsers as jest.Mock).mockRejectedValue(
+        new Error('Error')
+      );
 
       await userController.getUsers(req as Request, res as Response);
 
@@ -52,13 +67,49 @@ describe('UserController', () => {
   });
 
   describe('getSingleUser', () => {
-    it('should return a user by ID', async () => {
+    it('should return a user by ID from cache', async () => {
       req.params = { userId: '1' };
-      (userService.getUserById as jest.Mock).mockResolvedValue(exampleUser);
+      (redisClient.hGetAll as jest.Mock).mockResolvedValue({
+        id: '1',
+        name: 'John Doe',
+        email: 'john@example.com',
+        password: 'hashedPassword',
+        roles: '1',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+      (mapRedisHash as jest.Mock).mockReturnValue(exampleUser);
 
       await userController.getSingleUser(req as Request, res as Response);
 
+      expect(redisClient.hGetAll).toHaveBeenCalledWith('user:1');
+      expect(mapRedisHash).toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith(exampleUser);
+    });
+
+    it('should return a user by ID from database and cache it', async () => {
+      req.params = { userId: '1' };
+      (redisClient.hGetAll as jest.Mock).mockResolvedValue({});
+      (userService.getUserById as jest.Mock).mockResolvedValue(exampleUser);
+      (saveToRedisHash as jest.Mock).mockReturnValue({
+        id: '1',
+        name: 'John Doe',
+        email: 'john@example.com',
+        password: 'hashedPassword',
+        roles: '1',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+
+      await userController.getSingleUser(req as Request, res as Response);
+
+      expect(redisClient.hGetAll).toHaveBeenCalledWith('user:1');
       expect(userService.getUserById).toHaveBeenCalledWith(1);
+      expect(redisClient.hSet).toHaveBeenCalledWith(
+        'user:1',
+        expect.any(Object)
+      );
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith(exampleUser);
     });
@@ -74,7 +125,7 @@ describe('UserController', () => {
 
     it('should handle errors', async () => {
       req.params = { userId: '1' };
-      (userService.getUserById as jest.Mock).mockRejectedValue(new Error('Error'));
+      (redisClient.hGetAll as jest.Mock).mockRejectedValue(new Error('Error'));
 
       await userController.getSingleUser(req as Request, res as Response);
 
@@ -85,7 +136,12 @@ describe('UserController', () => {
 
   describe('createUser', () => {
     it('should create a new user', async () => {
-      req.body = { name: 'John Doe', email: 'john@example.com', password: 'password', roles: 1 } as NewUserInput;
+      req.body = {
+        name: 'John Doe',
+        email: 'john@example.com',
+        password: 'password',
+        roles: 1,
+      } as NewUserInput;
       (userService.createNewUser as jest.Mock).mockResolvedValue(exampleUser);
 
       await userController.createUser(req as Request, res as Response);
@@ -101,12 +157,21 @@ describe('UserController', () => {
       await userController.createUser(req as Request, res as Response);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({ error: 'Request body is required' });
+      expect(res.json).toHaveBeenCalledWith({
+        error: 'Request body is required',
+      });
     });
 
     it('should handle errors', async () => {
-      req.body = { name: 'John Doe', email: 'john@example.com', password: 'password', roles: 1 } as NewUserInput;
-      (userService.createNewUser as jest.Mock).mockRejectedValue(new Error('Error'));
+      req.body = {
+        name: 'John Doe',
+        email: 'john@example.com',
+        password: 'password',
+        roles: 1,
+      } as NewUserInput;
+      (userService.createNewUser as jest.Mock).mockRejectedValue(
+        new Error('Error')
+      );
 
       await userController.createUser(req as Request, res as Response);
 
@@ -118,8 +183,14 @@ describe('UserController', () => {
   describe('updateUser', () => {
     it('should update an existing user', async () => {
       req.params = { userId: '1' };
-      req.body = { name: 'John Doe2', email: 'john2@example.com' } as UpdateUserInput;
-      (userService.updateExistingUser as jest.Mock).mockResolvedValue({ ...exampleUser, ...req.body });
+      req.body = {
+        name: 'John Doe2',
+        email: 'john2@example.com',
+      } as UpdateUserInput;
+      (userService.updateExistingUser as jest.Mock).mockResolvedValue({
+        ...exampleUser,
+        ...req.body,
+      });
 
       await userController.updateUser(req as Request, res as Response);
 
@@ -130,7 +201,10 @@ describe('UserController', () => {
 
     it('should handle missing userId', async () => {
       req.params = {};
-      req.body = { name: 'John Doe2', email: 'john2@example.com' } as UpdateUserInput;
+      req.body = {
+        name: 'John Doe2',
+        email: 'john2@example.com',
+      } as UpdateUserInput;
 
       await userController.updateUser(req as Request, res as Response);
 
@@ -145,13 +219,20 @@ describe('UserController', () => {
       await userController.updateUser(req as Request, res as Response);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({ error: 'Request body is required' });
+      expect(res.json).toHaveBeenCalledWith({
+        error: 'Request body is required',
+      });
     });
 
     it('should handle errors', async () => {
       req.params = { userId: '1' };
-      req.body = { name: 'John Doe2', email: 'john2@example.com' } as UpdateUserInput;
-      (userService.updateExistingUser as jest.Mock).mockRejectedValue(new Error('Error'));
+      req.body = {
+        name: 'John Doe2',
+        email: 'john2@example.com',
+      } as UpdateUserInput;
+      (userService.updateExistingUser as jest.Mock).mockRejectedValue(
+        new Error('Error')
+      );
 
       await userController.updateUser(req as Request, res as Response);
 
@@ -183,7 +264,9 @@ describe('UserController', () => {
 
     it('should handle errors', async () => {
       req.params = { userId: '1' };
-      (userService.deleteUserById as jest.Mock).mockRejectedValue(new Error('Error'));
+      (userService.deleteUserById as jest.Mock).mockRejectedValue(
+        new Error('Error')
+      );
 
       await userController.deleteUser(req as Request, res as Response);
 
@@ -196,7 +279,10 @@ describe('UserController', () => {
     it('should change the user role', async () => {
       req.params = { userId: '1' };
       req.body = { roles: 2 } as GiveRoleInput;
-      (userService.changeUserRole as jest.Mock).mockResolvedValue({ ...exampleUser, roles: 2 });
+      (userService.changeUserRole as jest.Mock).mockResolvedValue({
+        ...exampleUser,
+        roles: 2,
+      });
 
       await userController.giveUserRole(req as Request, res as Response);
 
@@ -228,7 +314,9 @@ describe('UserController', () => {
     it('should handle errors', async () => {
       req.params = { userId: '1' };
       req.body = { roles: 2 } as GiveRoleInput;
-      (userService.changeUserRole as jest.Mock).mockRejectedValue(new Error('Error'));
+      (userService.changeUserRole as jest.Mock).mockRejectedValue(
+        new Error('Error')
+      );
 
       await userController.giveUserRole(req as Request, res as Response);
 
