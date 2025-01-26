@@ -32,9 +32,11 @@ export class UserController {
       return res.status(400).json({ error: 'User ID is required' });
     }
     try {
+      console.log('req.params.userId', req.params.userId);
       const user = await getUserById(Number(req.params.userId));
       return res.status(200).json(user);
     } catch (error) {
+      console.log('error', error);
       if (error instanceof Error) {
         return res.status(500).json({ error: error.message });
       }

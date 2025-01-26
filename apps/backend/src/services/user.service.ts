@@ -12,26 +12,28 @@ export const getAllUsers = (): Promise<User[]> => {
 };
 
 export const getUserById = async (userId: number): Promise<User> => {
-  const cache = await redisClient.hGetAll(`${USER_CACHE_NAME}:${userId}`);
-  const cachedUser: User = mapRedisHash<User>(cache);
-  if (cachedUser) {
-    return cachedUser;
-  } else {
-    const user: User | null = await prismaClient.user.findUnique({
-      where: {
-        id: userId,
-      },
-    });
-
-    if (!user) {
-      throw new Error('User not found');
+  try {
+    const cache = await redisClient.hGetAll(`${USER_CACHE_NAME}:${userId}`);
+    if (Object.keys(cache)?.length) {
+      return mapRedisHash<User>(cache);
     } else {
-      await redisClient.hSet(
-        `${USER_CACHE_NAME}:${userId}`,
-        saveToRedisHash<User>(user)
-      );
-      return user;
+      const user: User | null = await prismaClient.user.findUnique({
+        where: {
+          id: userId,
+        },
+      });
+      if (!user) {
+        throw new Error('User not found');
+      } else {
+        await redisClient.hSet(
+          `${USER_CACHE_NAME}:${userId}`,
+          saveToRedisHash<User>(user)
+        );
+        return user;
+      }
     }
+  } catch (error) {
+    throw new Error(`User not found`);
   }
 };
 

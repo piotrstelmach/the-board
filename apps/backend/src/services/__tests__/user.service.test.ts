@@ -52,9 +52,9 @@ describe('UserService', () => {
     jest.clearAllMocks();
   });
 
-  afterEach(async () => {
-    await redisClient.del('user:1');
-  });
+  // afterEach(async () => {
+  //   await redisClient.del('user:1');
+  // });
 
   describe('getAllUsers', () => {
     it('should return all users', async () => {
@@ -90,6 +90,7 @@ describe('UserService', () => {
     });
 
     it('should return a user by ID from database and cache it', async () => {
+      await redisClient.del('user:1');
       (redisClient.hGetAll as jest.Mock).mockResolvedValue({});
       (prismaClient.user.findUnique as jest.Mock).mockResolvedValue(
         exampleUser
@@ -118,7 +119,7 @@ describe('UserService', () => {
     });
 
     it('should throw an error if user not found', async () => {
-      (redisClient.hGetAll as jest.Mock).mockResolvedValue({});
+      (redisClient.hGetAll as jest.Mock).mockResolvedValue(null);
       (prismaClient.user.findUnique as jest.Mock).mockResolvedValue(null);
 
       await expect(userService.getUserById(1)).rejects.toThrow(
