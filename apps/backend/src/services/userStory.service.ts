@@ -1,21 +1,39 @@
 import { prismaClient } from '../utils/database';
-import { NewUserStoryInput, UpdateUserStoryInput } from '../types/http/userStory.http';
+import {
+  NewUserStoryInput,
+  UpdateUserStoryInput,
+} from '../types/http/userStory.http';
+import { redisClient } from '../utils/redisClient';
+import { mapRedisHash } from '../utils/redisCache';
+import { UserStory } from '@prisma/client';
 
 export const getUserStories = async () => {
   return prismaClient.userStory.findMany();
 };
 
-export const getSingleUserStory = async (userStoryId: number) => {
-  const userStory = await prismaClient.userStory.findUnique({
-    where: {
-      id: userStoryId,
-    },
-  });
+export const STORY_CACHE_NAME = 'userStory';
 
-  if (!userStory) {
+export const getSingleUserStory = async (userStoryId: number) => {
+  try {
+    const storyCache = await redisClient.hGetAll(`userStory:${userStoryId}`);
+
+    if (Object.keys(storyCache)?.length) {
+      return mapRedisHash<UserStory>(storyCache);
+    } else {
+      const userStory = await prismaClient.userStory.findUnique({
+        where: {
+          id: userStoryId,
+        },
+      });
+
+      if (!userStory) {
+        throw new Error('User story not found');
+      } else {
+        return userStory;
+      }
+    }
+  } catch (e) {
     throw new Error('User story not found');
-  } else {
-    return userStory;
   }
 };
 

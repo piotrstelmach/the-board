@@ -5,6 +5,8 @@ import {
   NewUserStoryInput,
   UpdateUserStoryInput,
 } from '../../types/http/userStory.http';
+import { redisClient } from '../../utils/redisClient';
+import { mapRedisHash } from '../../utils/redisCache';
 
 jest.mock('../../utils/database', () => ({
   prismaClient: {
@@ -18,6 +20,9 @@ jest.mock('../../utils/database', () => ({
   },
 }));
 
+jest.mock('../../utils/redisClient');
+jest.mock('../../utils/redisCache');
+
 describe('UserStoryService', () => {
   const exampleUserStory: UserStory = {
     id: 1,
@@ -30,6 +35,10 @@ describe('UserStoryService', () => {
     createdAt: new Date(),
     updatedAt: new Date(),
   };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
 
   describe('getUserStories', () => {
     it('should return all user stories', async () => {
@@ -45,13 +54,36 @@ describe('UserStoryService', () => {
   });
 
   describe('getSingleUserStory', () => {
-    it('should return a user story by ID', async () => {
+    it('should return a user story by ID from cache', async () => {
+      (redisClient.hGetAll as jest.Mock).mockResolvedValue({
+        id: '1',
+        title: 'User Story 1',
+        description: 'Description of user story 1',
+        priority: 'MEDIUM',
+        status: 'PLANNED',
+        epicId: '1',
+        storyPoints: '10',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+      (mapRedisHash as jest.Mock).mockReturnValue(exampleUserStory);
+
+      const userStory = await userStoryService.getSingleUserStory(1);
+
+      expect(redisClient.hGetAll).toHaveBeenCalledWith('userStory:1');
+      expect(mapRedisHash).toHaveBeenCalled();
+      expect(userStory).toEqual(exampleUserStory);
+    });
+
+    it('should return a user story by ID from database and cache it', async () => {
+      (redisClient.hGetAll as jest.Mock).mockResolvedValue({});
       (prismaClient.userStory.findUnique as jest.Mock).mockResolvedValue(
         exampleUserStory
       );
 
       const userStory = await userStoryService.getSingleUserStory(1);
 
+      expect(redisClient.hGetAll).toHaveBeenCalledWith('userStory:1');
       expect(prismaClient.userStory.findUnique).toHaveBeenCalledWith({
         where: { id: 1 },
       });
@@ -59,6 +91,7 @@ describe('UserStoryService', () => {
     });
 
     it('should throw an error if user story not found', async () => {
+      (redisClient.hGetAll as jest.Mock).mockResolvedValue({});
       (prismaClient.userStory.findUnique as jest.Mock).mockResolvedValue(null);
 
       await expect(userStoryService.getSingleUserStory(1)).rejects.toThrow(
