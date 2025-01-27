@@ -1,23 +1,38 @@
 import { prismaClient } from '../utils/database';
 import { NewTaskInput, UpdateTaskInput } from '../types/http/task.http';
+import { redisClient } from '../utils/redisClient';
+import { mapRedisHash } from '../utils/redisCache';
+import { Task } from '@prisma/client';
+
+export const TASK_CACHE_NAME = 'task';
 
 export const getAllTasks = async () => {
   return prismaClient.task.findMany();
-}
+};
 
 export const getTaskById = async (taskId: number) => {
-  const task = await prismaClient.task.findUnique({
-    where: {
-      id: taskId,
-    },
-  });
+  try {
+    const taskCache = await redisClient.hGetAll(`${TASK_CACHE_NAME}:${taskId}`);
 
-  if (!task) {
+    if (Object.keys(taskCache)?.length) {
+      return mapRedisHash<Task>(taskCache);
+    } else {
+      const task = await prismaClient.task.findUnique({
+        where: {
+          id: taskId,
+        },
+      });
+
+      if (!task) {
+        throw new Error('Task not found');
+      } else {
+        return task;
+      }
+    }
+  } catch (e) {
     throw new Error('Task not found');
-  } else {
-    return task;
   }
-}
+};
 
 export const createTask = async (data: NewTaskInput) => {
   return prismaClient.task.create({
@@ -25,7 +40,7 @@ export const createTask = async (data: NewTaskInput) => {
       ...data,
     },
   });
-}
+};
 
 export const updateTask = async (taskId: number, data: UpdateTaskInput) => {
   const task = await prismaClient.task.findUnique({
@@ -47,7 +62,7 @@ export const updateTask = async (taskId: number, data: UpdateTaskInput) => {
       },
     });
   }
-}
+};
 
 export const deleteTask = async (taskId: number) => {
   const task = await prismaClient.task.findUnique({
@@ -65,4 +80,4 @@ export const deleteTask = async (taskId: number) => {
       },
     });
   }
-}
+};
