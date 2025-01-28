@@ -3,7 +3,17 @@ import express from 'express';
 
 export interface TypedRequestBody<T> extends express.Request {
   body: T;
-  params: ParamsDictionary,
+  params: ParamsDictionary;
+  query: ParamsDictionary;
+}
+
+export interface TypedRequestQueryParams<T> extends express.Request {
+  query: T;
+}
+
+export interface TypedRequestBodyAndQuery<T, P> extends express.Request {
+  body: T;
+  query: P;
 }
 
 export type TypedResponse<T> = Omit<express.Response, 'json' | 'status'> & {

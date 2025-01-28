@@ -6,9 +6,32 @@ import { redisClient } from '../utils/redisClient';
 import { mapRedisHash, saveToRedisHash } from '../utils/redisCache';
 
 const USER_CACHE_NAME = 'user';
+const USER_PAGINATE_CACHE_NAME = 'pagination:user';
 
-export const getAllUsers = (): Promise<User[]> => {
-  return prismaClient.user.findMany();
+export const getAllUsers = async (
+  page: number,
+  limit: number
+): Promise<User[]> => {
+  try {
+    const cache = await redisClient.hGetAll(
+      `${USER_PAGINATE_CACHE_NAME}:page${page}limit:${limit}`
+    );
+    if (Object.keys(cache)?.length) {
+      return mapRedisHash<User[]>(cache);
+    } else {
+      const users = await prismaClient.user.findMany({
+        skip: (page - 1) * limit,
+        take: limit,
+      });
+      await redisClient.hSet(
+        `${USER_PAGINATE_CACHE_NAME}:page${page}limit:${limit}`,
+        saveToRedisHash<User[]>(users)
+      );
+      return users;
+    }
+  } catch (e) {
+    throw new Error('Error fetching users');
+  }
 };
 
 export const getUserById = async (userId: number): Promise<User> => {

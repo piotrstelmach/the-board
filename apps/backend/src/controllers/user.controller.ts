@@ -1,4 +1,8 @@
-import { ErrorResponse, TypedRequestBody } from '../types/global';
+import {
+  ErrorResponse,
+  TypedRequestBody,
+  TypedRequestQueryParams,
+} from '../types/global';
 import {
   GiveRoleInput,
   NewUserInput,
@@ -14,11 +18,22 @@ import {
   updateExistingUser,
 } from '../services/user.service';
 import { User } from '@prisma/client';
+import { PaginationParams } from '../types/http/pagination.http';
+import {
+  DEFAULT_PAGINATION_LIMIT,
+  DEFAULT_PAGINATION_PAGE,
+} from '../config/pagination';
 
 export class UserController {
-  async getUsers(_req: Request, res: Response<User[] | ErrorResponse>) {
+  async getUsers(
+    req: TypedRequestQueryParams<PaginationParams>,
+    res: Response<User[] | ErrorResponse>
+  ) {
     try {
-      const users = await getAllUsers();
+      const users = await getAllUsers(
+        req.query.page ?? DEFAULT_PAGINATION_PAGE,
+        req.query.limit ?? DEFAULT_PAGINATION_LIMIT
+      );
       return res.status(200).json(users);
     } catch (error) {
       if (error instanceof Error) {
