@@ -1,12 +1,32 @@
 import { prismaClient } from '../utils/database';
 import { redisClient } from '../utils/redisClient';
-import { mapRedisHash } from '../utils/redisCache';
+import { mapRedisHash, saveToRedisHash } from '../utils/redisCache';
 import { Sprint } from '@prisma/client';
 
 const SPRINT_CACHE_NAME = 'sprint';
+const SPRINT_PAGINATE_CACHE_NAME = 'pagination:sprint';
 
-export const getAllSprints = async () => {
-  return prismaClient.sprint.findMany();
+export const getAllSprints = async (page: number, limit: number) => {
+  try {
+    const cache = await redisClient.hGetAll(
+      `${SPRINT_PAGINATE_CACHE_NAME}:page${page}limit:${limit}`
+    );
+    if (Object.keys(cache)?.length) {
+      return mapRedisHash<Sprint[]>(cache);
+    } else {
+      const sprints = await prismaClient.sprint.findMany({
+        skip: (page - 1) * limit,
+        take: limit,
+      });
+      await redisClient.hSet(
+        `${SPRINT_PAGINATE_CACHE_NAME}:page${page}limit:${limit}`,
+        saveToRedisHash<Sprint[]>(sprints)
+      );
+      return sprints;
+    }
+  } catch (e) {
+    throw new Error('Error fetching sprints');
+  }
 };
 
 export const getSprintById = async (sprintId: number) => {
