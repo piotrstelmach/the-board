@@ -2,7 +2,7 @@ import { prismaClient } from '../../utils/database';
 import { Sprint } from '@prisma/client';
 import * as sprintService from '../sprint.service';
 import { redisClient } from '../../utils/redisClient';
-import { mapRedisHash } from '../../utils/redisCache';
+import { mapRedisHash, saveToRedisHash } from '../../utils/redisCache';
 
 jest.mock('../../utils/database', () => ({
   prismaClient: {
@@ -36,15 +36,54 @@ describe('SprintService', () => {
   });
 
   describe('getAllSprints', () => {
-    it('should return all sprints', async () => {
+    it('should return all sprints from cache', async () => {
+      (redisClient.hGetAll as jest.Mock).mockResolvedValue({
+        '0': JSON.stringify(exampleSprint),
+      });
+      (mapRedisHash as jest.Mock).mockReturnValue([exampleSprint]);
+
+      const sprints = await sprintService.getAllSprints(1, 10);
+
+      expect(redisClient.hGetAll).toHaveBeenCalledWith(
+        'pagination:sprint:page1limit:10'
+      );
+      expect(mapRedisHash).toHaveBeenCalled();
+      expect(sprints).toEqual([exampleSprint]);
+    });
+
+    it('should return all sprints from database and cache them', async () => {
+      (redisClient.hGetAll as jest.Mock).mockResolvedValue({});
       (prismaClient.sprint.findMany as jest.Mock).mockResolvedValue([
         exampleSprint,
       ]);
+      (saveToRedisHash as jest.Mock).mockReturnValue({
+        '0': JSON.stringify(exampleSprint),
+      });
 
-      const sprints = await sprintService.getAllSprints();
+      const sprints = await sprintService.getAllSprints(1, 10);
 
-      expect(prismaClient.sprint.findMany).toHaveBeenCalled();
+      expect(redisClient.hGetAll).toHaveBeenCalledWith(
+        'pagination:sprint:page1limit:10'
+      );
+      expect(prismaClient.sprint.findMany).toHaveBeenCalledWith({
+        skip: 0,
+        take: 10,
+      });
+      expect(redisClient.hSet).toHaveBeenCalledWith(
+        'pagination:sprint:page1limit:10',
+        expect.any(Object)
+      );
       expect(sprints).toEqual([exampleSprint]);
+    });
+
+    it('should throw an error if fetching sprints fails', async () => {
+      (redisClient.hGetAll as jest.Mock).mockRejectedValue(
+        new Error('Error fetching sprints')
+      );
+
+      await expect(sprintService.getAllSprints(1, 10)).rejects.toThrow(
+        'Error fetching sprints'
+      );
     });
   });
 

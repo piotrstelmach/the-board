@@ -4,7 +4,6 @@ import express from 'express';
 export interface TypedRequestBody<T> extends express.Request {
   body: T;
   params: ParamsDictionary;
-  query: ParamsDictionary;
 }
 
 export interface TypedRequestQueryParams<T> extends express.Request {

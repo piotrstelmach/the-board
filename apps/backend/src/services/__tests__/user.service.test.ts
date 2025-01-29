@@ -52,20 +52,55 @@ describe('UserService', () => {
     jest.clearAllMocks();
   });
 
-  // afterEach(async () => {
-  //   await redisClient.del('user:1');
-  // });
-
   describe('getAllUsers', () => {
-    it('should return all users', async () => {
+    it('should return all users from cache', async () => {
+      (redisClient.hGetAll as jest.Mock).mockResolvedValue({
+        '0': JSON.stringify(exampleUser),
+      });
+      (mapRedisHash as jest.Mock).mockReturnValue([exampleUser]);
+
+      const users = await userService.getAllUsers(1, 10);
+
+      expect(redisClient.hGetAll).toHaveBeenCalledWith(
+        'pagination:user:page1limit:10'
+      );
+      expect(mapRedisHash).toHaveBeenCalled();
+      expect(users).toEqual([exampleUser]);
+    });
+
+    it('should return all users from database and cache them', async () => {
+      (redisClient.hGetAll as jest.Mock).mockResolvedValue({});
       (prismaClient.user.findMany as jest.Mock).mockResolvedValue([
         exampleUser,
       ]);
+      (saveToRedisHash as jest.Mock).mockReturnValue({
+        '0': JSON.stringify(exampleUser),
+      });
 
-      const users = await userService.getAllUsers();
+      const users = await userService.getAllUsers(1, 10);
 
-      expect(prismaClient.user.findMany).toHaveBeenCalled();
+      expect(redisClient.hGetAll).toHaveBeenCalledWith(
+        'pagination:user:page1limit:10'
+      );
+      expect(prismaClient.user.findMany).toHaveBeenCalledWith({
+        skip: 0,
+        take: 10,
+      });
+      expect(redisClient.hSet).toHaveBeenCalledWith(
+        'pagination:user:page1limit:10',
+        expect.any(Object)
+      );
       expect(users).toEqual([exampleUser]);
+    });
+
+    it('should throw an error if fetching users fails', async () => {
+      (redisClient.hGetAll as jest.Mock).mockRejectedValue(
+        new Error('Error fetching users')
+      );
+
+      await expect(userService.getAllUsers(1, 10)).rejects.toThrow(
+        'Error fetching users'
+      );
     });
   });
 
@@ -90,7 +125,6 @@ describe('UserService', () => {
     });
 
     it('should return a user by ID from database and cache it', async () => {
-      await redisClient.del('user:1');
       (redisClient.hGetAll as jest.Mock).mockResolvedValue({});
       (prismaClient.user.findUnique as jest.Mock).mockResolvedValue(
         exampleUser
@@ -119,7 +153,7 @@ describe('UserService', () => {
     });
 
     it('should throw an error if user not found', async () => {
-      (redisClient.hGetAll as jest.Mock).mockResolvedValue(null);
+      (redisClient.hGetAll as jest.Mock).mockResolvedValue({});
       (prismaClient.user.findUnique as jest.Mock).mockResolvedValue(null);
 
       await expect(userService.getUserById(1)).rejects.toThrow(

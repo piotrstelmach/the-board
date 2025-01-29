@@ -2,6 +2,9 @@ import { Request, Response } from 'express';
 import { UserController } from '../user.controller';
 import * as userService from '../../services/user.service';
 import { User } from '@prisma/client';
+import { TypedRequestBody, TypedRequestQueryParams } from '../../types/global';
+import { PaginationParams } from '../../types/http/pagination.http';
+import { NewUserInput, UpdateUserInput } from '../../types/http/user.http';
 
 jest.mock('../../services/user.service');
 
@@ -34,7 +37,10 @@ describe('UserController', () => {
     it('should return all users', async () => {
       (userService.getAllUsers as jest.Mock).mockResolvedValue([exampleUser]);
 
-      await userController.getUsers(req as Request, res as Response);
+      await userController.getUsers(
+        req as TypedRequestQueryParams<PaginationParams>,
+        res as Response
+      );
 
       expect(userService.getAllUsers).toHaveBeenCalled();
       expect(res.status).toHaveBeenCalledWith(200);
@@ -92,7 +98,10 @@ describe('UserController', () => {
       req.body = exampleUser;
       (userService.createNewUser as jest.Mock).mockResolvedValue(exampleUser);
 
-      await userController.createUser(req as Request, res as Response);
+      await userController.createUser(
+        req as TypedRequestBody<NewUserInput>,
+        res as Response
+      );
 
       expect(userService.createNewUser).toHaveBeenCalledWith(req.body);
       expect(res.status).toHaveBeenCalledWith(201);
@@ -102,7 +111,10 @@ describe('UserController', () => {
     it('should handle missing request body', async () => {
       req.body = undefined;
 
-      await userController.createUser(req as Request, res as Response);
+      await userController.createUser(
+        req as TypedRequestBody<NewUserInput>,
+        res as Response
+      );
 
       expect(res.status).toHaveBeenCalledWith(400);
       expect(res.json).toHaveBeenCalledWith({
@@ -116,7 +128,10 @@ describe('UserController', () => {
         new Error('Error')
       );
 
-      await userController.createUser(req as Request, res as Response);
+      await userController.createUser(
+        req as TypedRequestBody<NewUserInput>,
+        res as Response
+      );
 
       expect(res.status).toHaveBeenCalledWith(500);
       expect(res.json).toHaveBeenCalledWith({ error: 'Error' });
@@ -132,7 +147,10 @@ describe('UserController', () => {
         updatedUser
       );
 
-      await userController.updateUser(req as Request, res as Response);
+      await userController.updateUser(
+        req as TypedRequestBody<UpdateUserInput>,
+        res as Response
+      );
 
       expect(userService.updateExistingUser).toHaveBeenCalledWith(1, req.body);
       expect(res.status).toHaveBeenCalledWith(200);
@@ -142,7 +160,10 @@ describe('UserController', () => {
     it('should handle missing userId', async () => {
       req.params = {};
 
-      await userController.updateUser(req as Request, res as Response);
+      await userController.updateUser(
+        req as TypedRequestBody<NewUserInput>,
+        res as Response
+      );
 
       expect(res.status).toHaveBeenCalledWith(400);
       expect(res.json).toHaveBeenCalledWith({ error: 'User ID is required' });
@@ -152,7 +173,10 @@ describe('UserController', () => {
       req.params = { userId: '1' };
       req.body = undefined;
 
-      await userController.updateUser(req as Request, res as Response);
+      await userController.updateUser(
+        req as TypedRequestBody<UpdateUserInput>,
+        res as Response
+      );
 
       expect(res.status).toHaveBeenCalledWith(400);
       expect(res.json).toHaveBeenCalledWith({
@@ -167,7 +191,10 @@ describe('UserController', () => {
         new Error('Error')
       );
 
-      await userController.updateUser(req as Request, res as Response);
+      await userController.updateUser(
+        req as TypedRequestBody<UpdateUserInput>,
+        res as Response
+      );
 
       expect(res.status).toHaveBeenCalledWith(500);
       expect(res.json).toHaveBeenCalledWith({ error: 'Error' });
@@ -215,7 +242,10 @@ describe('UserController', () => {
       const updatedUser = { ...exampleUser, roles: 2 };
       (userService.changeUserRole as jest.Mock).mockResolvedValue(updatedUser);
 
-      await userController.giveUserRole(req as Request, res as Response);
+      await userController.giveUserRole(
+        req as TypedRequestBody<{ roles: number }>,
+        res as Response
+      );
 
       expect(userService.changeUserRole).toHaveBeenCalledWith(1, 2);
       expect(res.status).toHaveBeenCalledWith(200);
@@ -226,7 +256,10 @@ describe('UserController', () => {
       req.params = {};
       req.body = { roles: 2 };
 
-      await userController.giveUserRole(req as Request, res as Response);
+      await userController.giveUserRole(
+        req as TypedRequestBody<{ roles: number }>,
+        res as Response
+      );
 
       expect(res.status).toHaveBeenCalledWith(400);
       expect(res.json).toHaveBeenCalledWith({ error: 'User ID is required' });
@@ -236,7 +269,10 @@ describe('UserController', () => {
       req.params = { userId: '1' };
       req.body = {};
 
-      await userController.giveUserRole(req as Request, res as Response);
+      await userController.giveUserRole(
+        req as TypedRequestBody<{ roles: number }>,
+        res as Response
+      );
 
       expect(res.status).toHaveBeenCalledWith(400);
       expect(res.json).toHaveBeenCalledWith({ error: 'Roles are required' });
@@ -249,7 +285,10 @@ describe('UserController', () => {
         new Error('Error')
       );
 
-      await userController.giveUserRole(req as Request, res as Response);
+      await userController.giveUserRole(
+        req as TypedRequestBody<{ roles: number }>,
+        res as Response
+      );
 
       expect(res.status).toHaveBeenCalledWith(500);
       expect(res.json).toHaveBeenCalledWith({ error: 'Error' });

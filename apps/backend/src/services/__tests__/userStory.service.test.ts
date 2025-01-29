@@ -6,7 +6,7 @@ import {
   UpdateUserStoryInput,
 } from '../../types/http/userStory.http';
 import { redisClient } from '../../utils/redisClient';
-import { mapRedisHash } from '../../utils/redisCache';
+import { mapRedisHash, saveToRedisHash } from '../../utils/redisCache';
 
 jest.mock('../../utils/database', () => ({
   prismaClient: {
@@ -41,15 +41,54 @@ describe('UserStoryService', () => {
   });
 
   describe('getUserStories', () => {
-    it('should return all user stories', async () => {
+    it('should return all user stories from cache', async () => {
+      (redisClient.hGetAll as jest.Mock).mockResolvedValue({
+        '0': JSON.stringify(exampleUserStory),
+      });
+      (mapRedisHash as jest.Mock).mockReturnValue([exampleUserStory]);
+
+      const userStories = await userStoryService.getUserStories(1, 10);
+
+      expect(redisClient.hGetAll).toHaveBeenCalledWith(
+        'pagination:userStory:page1limit:10'
+      );
+      expect(mapRedisHash).toHaveBeenCalled();
+      expect(userStories).toEqual([exampleUserStory]);
+    });
+
+    it('should return all user stories from database and cache them', async () => {
+      (redisClient.hGetAll as jest.Mock).mockResolvedValue({});
       (prismaClient.userStory.findMany as jest.Mock).mockResolvedValue([
         exampleUserStory,
       ]);
+      (saveToRedisHash as jest.Mock).mockReturnValue({
+        '0': JSON.stringify(exampleUserStory),
+      });
 
-      const userStories = await userStoryService.getUserStories();
+      const userStories = await userStoryService.getUserStories(1, 10);
 
-      expect(prismaClient.userStory.findMany).toHaveBeenCalled();
+      expect(redisClient.hGetAll).toHaveBeenCalledWith(
+        'pagination:userStory:page1limit:10'
+      );
+      expect(prismaClient.userStory.findMany).toHaveBeenCalledWith({
+        skip: 0,
+        take: 10,
+      });
+      expect(redisClient.hSet).toHaveBeenCalledWith(
+        'pagination:userStory:page1limit:10',
+        expect.any(Object)
+      );
       expect(userStories).toEqual([exampleUserStory]);
+    });
+
+    it('should throw an error if fetching user stories fails', async () => {
+      (redisClient.hGetAll as jest.Mock).mockRejectedValue(
+        new Error('Error fetching user stories')
+      );
+
+      await expect(userStoryService.getUserStories(1, 10)).rejects.toThrow(
+        'Error fetching user stories'
+      );
     });
   });
 
