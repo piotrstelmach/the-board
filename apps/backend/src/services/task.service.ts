@@ -1,13 +1,34 @@
 import { prismaClient } from '../utils/database';
 import { NewTaskInput, UpdateTaskInput } from '../types/http/task.http';
 import { redisClient } from '../utils/redisClient';
-import { mapRedisHash } from '../utils/redisCache';
+import { mapRedisHash, saveToRedisHash } from '../utils/redisCache';
 import { Task } from '@prisma/client';
 
 export const TASK_CACHE_NAME = 'task';
+export const PAGINATE_TASK_CACHE_NAME = 'pagination:task';
 
-export const getAllTasks = async () => {
-  return prismaClient.task.findMany();
+export const getAllTasks = async (page: number, limit: number) => {
+  try {
+    const cache = await redisClient.hGetAll(
+      `${PAGINATE_TASK_CACHE_NAME}:page${page}limit:${limit}`
+    );
+
+    if (Object.keys(cache)?.length) {
+      return mapRedisHash<Task[]>(cache);
+    } else {
+      const tasks = await prismaClient.task.findMany({
+        skip: (page - 1) * limit,
+        take: limit,
+      });
+      await redisClient.hSet(
+        `${PAGINATE_TASK_CACHE_NAME}:page${page}limit:${limit}`,
+        saveToRedisHash<Task[]>(tasks)
+      );
+      return tasks;
+    }
+  } catch (e) {
+    throw new Error('Error fetching tasks');
+  }
 };
 
 export const getTaskById = async (taskId: number) => {
