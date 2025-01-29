@@ -3,6 +3,7 @@ import { Task } from '@prisma/client';
 import { NewTaskInput, UpdateTaskInput } from '../../types/http/task.http';
 import * as taskService from '../task.service';
 import { redisClient } from '../../utils/redisClient';
+import { mapRedisHash, saveToRedisHash } from '../../utils/redisCache';
 
 jest.mock('../../utils/database', () => ({
   prismaClient: {
@@ -17,6 +18,7 @@ jest.mock('../../utils/database', () => ({
 }));
 
 jest.mock('../../utils/redisClient');
+jest.mock('../../utils/redisCache');
 
 describe('TaskService', () => {
   const exampleTask: Task = {
@@ -38,15 +40,54 @@ describe('TaskService', () => {
   });
 
   describe('getAllTasks', () => {
-    it('should return all tasks', async () => {
+    it('should return all tasks from cache', async () => {
+      (redisClient.hGetAll as jest.Mock).mockResolvedValue({
+        '0': JSON.stringify(exampleTask),
+      });
+      (mapRedisHash as jest.Mock).mockReturnValue([exampleTask]);
+
+      const tasks = await taskService.getAllTasks(1, 10);
+
+      expect(redisClient.hGetAll).toHaveBeenCalledWith(
+        'pagination:task:page1limit:10'
+      );
+      expect(mapRedisHash).toHaveBeenCalled();
+      expect(tasks).toEqual([exampleTask]);
+    });
+
+    it('should return all tasks from database and cache them', async () => {
+      (redisClient.hGetAll as jest.Mock).mockResolvedValue({});
       (prismaClient.task.findMany as jest.Mock).mockResolvedValue([
         exampleTask,
       ]);
+      (saveToRedisHash as jest.Mock).mockReturnValue({
+        '0': JSON.stringify(exampleTask),
+      });
 
-      const tasks = await taskService.getAllTasks();
+      const tasks = await taskService.getAllTasks(1, 10);
 
-      expect(prismaClient.task.findMany).toHaveBeenCalled();
+      expect(redisClient.hGetAll).toHaveBeenCalledWith(
+        'pagination:task:page1limit:10'
+      );
+      expect(prismaClient.task.findMany).toHaveBeenCalledWith({
+        skip: 0,
+        take: 10,
+      });
+      expect(redisClient.hSet).toHaveBeenCalledWith(
+        'pagination:task:page1limit:10',
+        expect.any(Object)
+      );
       expect(tasks).toEqual([exampleTask]);
+    });
+
+    it('should throw an error if fetching tasks fails', async () => {
+      (redisClient.hGetAll as jest.Mock).mockRejectedValue(
+        new Error('Error fetching tasks')
+      );
+
+      await expect(taskService.getAllTasks(1, 10)).rejects.toThrow(
+        'Error fetching tasks'
+      );
     });
   });
 
@@ -65,23 +106,13 @@ describe('TaskService', () => {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       });
+      (mapRedisHash as jest.Mock).mockReturnValue(exampleTask);
 
       const task = await taskService.getTaskById(1);
 
       expect(redisClient.hGetAll).toHaveBeenCalledWith('task:1');
-      expect(task).toEqual({
-        id: '1',
-        title: 'Test Task',
-        description: 'This is a test task',
-        status: 'TODO',
-        priority: 'LOW',
-        storyPoints: '1',
-        assigneeId: '1',
-        sprintId: null,
-        storyId: null,
-        createdAt: expect.any(String),
-        updatedAt: expect.any(String),
-      });
+      expect(mapRedisHash).toHaveBeenCalled();
+      expect(task).toEqual(exampleTask);
     });
 
     it('should return a task by ID from database and cache it', async () => {
