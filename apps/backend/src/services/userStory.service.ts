@@ -4,18 +4,42 @@ import {
   UpdateUserStoryInput,
 } from '../types/http/userStory.http';
 import { redisClient } from '../utils/redisClient';
-import { mapRedisHash } from '../utils/redisCache';
+import { mapRedisHash, saveToRedisHash } from '../utils/redisCache';
 import { UserStory } from '@prisma/client';
 
-export const getUserStories = async () => {
-  return prismaClient.userStory.findMany();
-};
+const STORY_CACHE_NAME = 'userStory';
+const PAGINATE_STORY_CACHE_NAME = 'pagination:userStory';
 
-export const STORY_CACHE_NAME = 'userStory';
+export const getUserStories = async (page: number, limit: number) => {
+  try {
+    const cache = await redisClient.hGetAll(
+      `${PAGINATE_STORY_CACHE_NAME}:page${page}limit:${limit}`
+    );
+    if (Object.keys(cache)?.length) {
+      return mapRedisHash<UserStory[]>(cache);
+    } else {
+      const userStories = await prismaClient.userStory.findMany({
+        skip: (page - 1) * limit,
+        take: limit,
+      });
+
+      await redisClient.hSet(
+        `${PAGINATE_STORY_CACHE_NAME}:page${page}limit:${limit}`,
+        saveToRedisHash<UserStory[]>(userStories)
+      );
+
+      return userStories;
+    }
+  } catch (e) {
+    throw new Error('Error fetching user stories');
+  }
+};
 
 export const getSingleUserStory = async (userStoryId: number) => {
   try {
-    const storyCache = await redisClient.hGetAll(`userStory:${userStoryId}`);
+    const storyCache = await redisClient.hGetAll(
+      `${STORY_CACHE_NAME}:${userStoryId}`
+    );
 
     if (Object.keys(storyCache)?.length) {
       return mapRedisHash<UserStory>(storyCache);

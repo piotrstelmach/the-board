@@ -1,19 +1,31 @@
 import { Request, Response } from 'express';
 import * as userStoryService from '../services/userStory.service';
-import { ErrorResponse, TypedRequestBody } from '../types/global';
+import {
+  ErrorResponse,
+  TypedRequestBody,
+  TypedRequestQueryParams,
+} from '../types/global';
 import {
   NewUserStoryInput,
   UpdateUserStoryInput,
 } from '../types/http/userStory.http';
 import { UserStory } from '@prisma/client';
+import { PaginationParams } from '../types/http/pagination.http';
+import {
+  DEFAULT_PAGINATION_LIMIT,
+  DEFAULT_PAGINATION_PAGE,
+} from '../config/pagination';
 
 export class UserStoryController {
   async getUserStories(
-    _req: Request,
+    req: TypedRequestQueryParams<PaginationParams>,
     res: Response<UserStory[] | ErrorResponse>
   ) {
     try {
-      const userStories = await userStoryService.getUserStories();
+      const userStories = await userStoryService.getUserStories(
+        req.query.page ?? DEFAULT_PAGINATION_PAGE,
+        req.query.limit ?? DEFAULT_PAGINATION_LIMIT
+      );
       return res.status(200).json(userStories);
     } catch (error) {
       if (error instanceof Error) {
