@@ -37,9 +37,12 @@ export class TaskController {
     res: Response<Task[] | ErrorResponse>
   ) {
     try {
+      const page = Number(req.query.page);
+      const limit = Number(req.query.limit);
+
       const tasks = await taskService.getAllTasks(
-        req.query.page ?? DEFAULT_PAGINATION_PAGE,
-        req.query.limit ?? DEFAULT_PAGINATION_LIMIT
+        page ?? DEFAULT_PAGINATION_PAGE,
+        limit ?? DEFAULT_PAGINATION_LIMIT
       );
       return res.status(200).json(tasks);
     } catch (error) {

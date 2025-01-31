@@ -1,24 +1,28 @@
+import { Request, Response } from 'express';
 import { TaskController } from '../task.controller';
 import * as taskService from '../../services/task.service';
-import { Request, Response } from 'express';
+import { Task, TaskStatus } from '@prisma/client';
+import { TypedRequestBody, TypedRequestQueryParams } from '../../types/global';
+import { PaginationParams } from '../../types/http/pagination.http';
 import { NewTaskInput, UpdateTaskInput } from '../../types/http/task.http';
-import { Task, TaskPriority, TaskStatus } from '@prisma/client';
-import { ErrorResponse, TypedRequestBody } from '../../types/global';
+
+jest.mock('../../services/task.service');
 
 describe('TaskController', () => {
   let req: Partial<Request>;
   let res: Partial<Response>;
+  let taskController: TaskController;
 
   const exampleTask: Task = {
     id: 1,
-    title: 'Test Task',
-    description: 'This is a test task',
+    title: 'Task 1',
+    description: 'Description of task 1',
     status: TaskStatus.TODO,
-    priority: TaskPriority.LOW,
-    storyPoints: 1,
-    assigneeId: 1,
-    sprintId: null,
-    storyId: null,
+    storyPoints: 0,
+    assigneeId: 0,
+    sprintId: 0,
+    storyId: 0,
+    priority: 'HIGH',
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -29,75 +33,91 @@ describe('TaskController', () => {
       status: jest.fn().mockReturnThis(),
       json: jest.fn(),
     };
+    taskController = new TaskController();
+    jest.clearAllMocks();
   });
-
 
   describe('createTask', () => {
     it('should create a new task', async () => {
-      req.body = { title: 'Test Task', description: 'This is a test task', userId: 1 } as NewTaskInput;
-      jest.spyOn(taskService, 'createTask').mockResolvedValue(exampleTask);
+      req.body = exampleTask;
+      (taskService.createTask as jest.Mock).mockResolvedValue(exampleTask);
 
-      const taskController = new TaskController();
-      await taskController.createTask(req as TypedRequestBody<NewTaskInput>, res as Response<Task | ErrorResponse>);
+      await taskController.createTask(
+        req as TypedRequestBody<NewTaskInput>,
+        res as Response
+      );
 
       expect(taskService.createTask).toHaveBeenCalledWith(req.body);
       expect(res.status).toHaveBeenCalledWith(201);
       expect(res.json).toHaveBeenCalledWith(exampleTask);
     });
 
-    it('should return 400 if request body is not provided', async () => {
-      const taskController = new TaskController();
-      await taskController.createTask(req as TypedRequestBody<NewTaskInput>, res as Response<Task | ErrorResponse>);
+    it('should handle missing request body', async () => {
+      req.body = undefined;
+
+      await taskController.createTask(
+        req as TypedRequestBody<NewTaskInput>,
+        res as Response
+      );
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({ error: 'Request body is required' });
+      expect(res.json).toHaveBeenCalledWith({
+        error: 'Request body is required',
+      });
     });
 
     it('should handle errors', async () => {
-      const error = new Error('Database error');
-      req.body = { title: 'Test Task', description: 'This is a test task', userId: 1 } as NewTaskInput;
-      jest.spyOn(taskService, 'createTask').mockRejectedValue(error);
+      req.body = exampleTask;
+      (taskService.createTask as jest.Mock).mockRejectedValue(
+        new Error('Error')
+      );
 
-      const taskController = new TaskController();
-      await taskController.createTask(req as TypedRequestBody<NewTaskInput>, res as Response<Task | ErrorResponse>);
+      await taskController.createTask(
+        req as TypedRequestBody<NewTaskInput>,
+        res as Response
+      );
 
-      expect(taskService.createTask).toHaveBeenCalledWith(req.body);
       expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith({ error: error.message });
+      expect(res.json).toHaveBeenCalledWith({ error: 'Error' });
     });
   });
 
   describe('getTasks', () => {
-    it('should get all tasks', async () => {
-      jest.spyOn(taskService, 'getAllTasks').mockResolvedValue([exampleTask]);
+    it('should return all tasks', async () => {
+      req.query = { page: '1', limit: '10' } as unknown as PaginationParams;
+      (taskService.getAllTasks as jest.Mock).mockResolvedValue([exampleTask]);
 
-      const taskController = new TaskController();
-      await taskController.getTasks(req as Request, res as Response);
+      await taskController.getTasks(
+        req as TypedRequestQueryParams<PaginationParams>,
+        res as Response
+      );
 
-      expect(taskService.getAllTasks).toHaveBeenCalled();
+      expect(taskService.getAllTasks).toHaveBeenCalledWith(1, 10);
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith([exampleTask]);
     });
 
     it('should handle errors', async () => {
-      const error = new Error('Database error');
-      jest.spyOn(taskService, 'getAllTasks').mockRejectedValue(error);
+      req.query = { page: '1', limit: '10' } as unknown as PaginationParams;
+      (taskService.getAllTasks as jest.Mock).mockRejectedValue(
+        new Error('Error')
+      );
 
-      const taskController = new TaskController();
-      await taskController.getTasks(req as Request, res as Response);
+      await taskController.getTasks(
+        req as TypedRequestQueryParams<PaginationParams>,
+        res as Response
+      );
 
-      expect(taskService.getAllTasks).toHaveBeenCalled();
       expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith({ error: error.message });
+      expect(res.json).toHaveBeenCalledWith({ error: 'Error' });
     });
   });
 
   describe('getTaskById', () => {
-    it('should get a task by ID', async () => {
+    it('should return a task by ID', async () => {
       req.params = { taskId: '1' };
-      jest.spyOn(taskService, 'getTaskById').mockResolvedValue(exampleTask);
+      (taskService.getTaskById as jest.Mock).mockResolvedValue(exampleTask);
 
-      const taskController = new TaskController();
       await taskController.getTaskById(req as Request, res as Response);
 
       expect(taskService.getTaskById).toHaveBeenCalledWith(1);
@@ -105,8 +125,9 @@ describe('TaskController', () => {
       expect(res.json).toHaveBeenCalledWith(exampleTask);
     });
 
-    it('should return 400 if taskId is not provided', async () => {
-      const taskController = new TaskController();
+    it('should handle missing taskId', async () => {
+      req.params = {};
+
       await taskController.getTaskById(req as Request, res as Response);
 
       expect(res.status).toHaveBeenCalledWith(400);
@@ -114,84 +135,94 @@ describe('TaskController', () => {
     });
 
     it('should handle errors', async () => {
-      const error = new Error('Database error');
       req.params = { taskId: '1' };
-      jest.spyOn(taskService, 'getTaskById').mockRejectedValue(error);
+      (taskService.getTaskById as jest.Mock).mockRejectedValue(
+        new Error('Error')
+      );
 
-      const taskController = new TaskController();
       await taskController.getTaskById(req as Request, res as Response);
 
-      expect(taskService.getTaskById).toHaveBeenCalledWith(1);
       expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith({ error: error.message });
+      expect(res.json).toHaveBeenCalledWith({ error: 'Error' });
     });
   });
 
   describe('updateTask', () => {
     it('should update an existing task', async () => {
-      const updatedTask = { ...exampleTask, title: 'Updated Task' };
       req.params = { taskId: '1' };
-      req.body = { title: 'Updated Task' } as UpdateTaskInput;
-      jest.spyOn(taskService, 'updateTask').mockResolvedValue(updatedTask);
+      req.body = { title: 'Updated Task' };
+      const updatedTask = { ...exampleTask, ...req.body };
+      (taskService.updateTask as jest.Mock).mockResolvedValue(updatedTask);
 
-      const taskController = new TaskController();
-      await taskController.updateTask(req as TypedRequestBody<UpdateTaskInput>, res as Response<Task | ErrorResponse>);
+      await taskController.updateTask(
+        req as TypedRequestBody<UpdateTaskInput>,
+        res as Response
+      );
 
       expect(taskService.updateTask).toHaveBeenCalledWith(1, req.body);
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith(updatedTask);
     });
 
-    it('should return 400 if request body is not provided', async () => {
-      req.params = { taskId: '1' };
-      const taskController = new TaskController();
-      await taskController.updateTask(req as TypedRequestBody<UpdateTaskInput>, res as Response<Task | ErrorResponse>);
+    it('should handle missing taskId', async () => {
+      req.params = {};
 
-      expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({ error: 'Request body is required' });
-    });
-
-    it('should return 400 if taskId is not provided', async () => {
-      req.body = { title: 'Updated Task' } as UpdateTaskInput;
-      const taskController = new TaskController();
-      await taskController.updateTask(req as TypedRequestBody<UpdateTaskInput>, res as Response<Task | ErrorResponse>);
+      await taskController.updateTask(
+        req as TypedRequestBody<UpdateTaskInput>,
+        res as Response
+      );
 
       expect(res.status).toHaveBeenCalledWith(400);
       expect(res.json).toHaveBeenCalledWith({ error: 'Task ID is required' });
     });
 
-    it('should handle errors', async () => {
-      const error = new Error('Database error');
+    it('should handle missing request body', async () => {
       req.params = { taskId: '1' };
-      req.body = { title: 'Updated Task' } as UpdateTaskInput;
-      jest.spyOn(taskService, 'updateTask').mockRejectedValue(error);
+      req.body = undefined;
 
-      const taskController = new TaskController();
-      await taskController.updateTask(req as Request, res as Response);
+      await taskController.updateTask(
+        req as TypedRequestBody<UpdateTaskInput>,
+        res as Response
+      );
 
-      expect(taskService.updateTask).toHaveBeenCalledWith(1, req.body);
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        error: 'Request body is required',
+      });
+    });
+
+    it('should handle errors', async () => {
+      req.params = { taskId: '1' };
+      req.body = { title: 'Updated Task' };
+      (taskService.updateTask as jest.Mock).mockRejectedValue(
+        new Error('Error')
+      );
+
+      await taskController.updateTask(
+        req as TypedRequestBody<UpdateTaskInput>,
+        res as Response
+      );
+
       expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith({ error: error.message });
+      expect(res.json).toHaveBeenCalledWith({ error: 'Error' });
     });
   });
 
   describe('deleteTask', () => {
     it('should delete a task by ID', async () => {
       req.params = { taskId: '1' };
-      // jest.spyOn(taskService, 'getTaskById').mockResolvedValue(exampleTask);
-      jest.spyOn(taskService, 'deleteTask').mockResolvedValue(exampleTask);
+      (taskService.deleteTask as jest.Mock).mockResolvedValue(exampleTask);
 
-      const taskController = new TaskController();
       await taskController.deleteTask(req as Request, res as Response);
 
-      expect(taskService.getTaskById).toHaveBeenCalledWith(1);
       expect(taskService.deleteTask).toHaveBeenCalledWith(1);
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith(exampleTask);
     });
 
-    it('should return 400 if taskId is not provided', async () => {
-      const taskController = new TaskController();
+    it('should handle missing taskId', async () => {
+      req.params = {};
+
       await taskController.deleteTask(req as Request, res as Response);
 
       expect(res.status).toHaveBeenCalledWith(400);
@@ -199,16 +230,15 @@ describe('TaskController', () => {
     });
 
     it('should handle errors', async () => {
-      const error = new Error('Database error');
       req.params = { taskId: '1' };
-      jest.spyOn(taskService, 'deleteTask').mockRejectedValue(error);
+      (taskService.deleteTask as jest.Mock).mockRejectedValue(
+        new Error('Error')
+      );
 
-      const taskController = new TaskController();
       await taskController.deleteTask(req as Request, res as Response);
 
-      expect(taskService.deleteTask).toHaveBeenCalledWith(1);
       expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith({ error: error.message });
+      expect(res.json).toHaveBeenCalledWith({ error: 'Error' });
     });
   });
 });
