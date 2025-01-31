@@ -22,9 +22,12 @@ export class UserStoryController {
     res: Response<UserStory[] | ErrorResponse>
   ) {
     try {
+      const page = Number(req.query.page);
+      const limit = Number(req.query.limit);
+
       const userStories = await userStoryService.getUserStories(
-        req.query.page ?? DEFAULT_PAGINATION_PAGE,
-        req.query.limit ?? DEFAULT_PAGINATION_LIMIT
+        page ?? DEFAULT_PAGINATION_PAGE,
+        limit ?? DEFAULT_PAGINATION_LIMIT
       );
       return res.status(200).json(userStories);
     } catch (error) {

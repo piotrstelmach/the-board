@@ -19,9 +19,12 @@ export class SprintController {
     res: Response<Sprint[] | ErrorResponse>
   ) {
     try {
+      const page = Number(req.query.page);
+      const limit = Number(req.query.limit);
+
       const sprints = await sprintService.getAllSprints(
-        req.query.page ?? DEFAULT_PAGINATION_PAGE,
-        req.query.limit ?? DEFAULT_PAGINATION_LIMIT
+        limit ?? DEFAULT_PAGINATION_PAGE,
+        page ?? DEFAULT_PAGINATION_LIMIT
       );
       return res.status(200).json(sprints);
     } catch (error) {

@@ -35,6 +35,7 @@ describe('UserController', () => {
 
   describe('getUsers', () => {
     it('should return all users', async () => {
+      req.query = { page: '1', limit: '10' } as unknown as PaginationParams;
       (userService.getAllUsers as jest.Mock).mockResolvedValue([exampleUser]);
 
       await userController.getUsers(
@@ -42,17 +43,21 @@ describe('UserController', () => {
         res as Response
       );
 
-      expect(userService.getAllUsers).toHaveBeenCalled();
+      expect(userService.getAllUsers).toHaveBeenCalledWith(1, 10);
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith([exampleUser]);
     });
 
     it('should handle errors', async () => {
+      req.query = { page: '1', limit: '10' } as unknown as PaginationParams;
       (userService.getAllUsers as jest.Mock).mockRejectedValue(
         new Error('Error')
       );
 
-      await userController.getUsers(req as Request, res as Response);
+      await userController.getUsers(
+        req as TypedRequestQueryParams<PaginationParams>,
+        res as Response
+      );
 
       expect(res.status).toHaveBeenCalledWith(500);
       expect(res.json).toHaveBeenCalledWith({ error: 'Error' });
