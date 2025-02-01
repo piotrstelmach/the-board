@@ -1,6 +1,7 @@
 import * as sprintService from '../services/sprint.service';
 import {
   ErrorResponse,
+  PaginatedResponse,
   TypedRequestBody,
   TypedRequestQueryParams,
 } from '../types/global';
@@ -16,7 +17,7 @@ import { PaginationParams } from '../types/http/pagination.http';
 export class SprintController {
   async getSprints(
     req: TypedRequestQueryParams<PaginationParams>,
-    res: Response<Sprint[] | ErrorResponse>
+    res: Response<PaginatedResponse<Sprint> | ErrorResponse>
   ) {
     try {
       const page = Number(req.query.page);
@@ -26,7 +27,10 @@ export class SprintController {
         limit ?? DEFAULT_PAGINATION_PAGE,
         page ?? DEFAULT_PAGINATION_LIMIT
       );
-      return res.status(200).json(sprints);
+
+      const nextPage = sprints?.length === limit ? page + 1 : null;
+
+      return res.status(200).json({ items: sprints, next: nextPage });
     } catch (error) {
       if (error instanceof Error) {
         return res.status(500).json({ error: error.message });

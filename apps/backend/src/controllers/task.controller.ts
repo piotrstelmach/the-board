@@ -1,5 +1,6 @@
 import {
   ErrorResponse,
+  PaginatedResponse,
   TypedRequestBody,
   TypedRequestQueryParams,
 } from '../types/global';
@@ -34,7 +35,7 @@ export class TaskController {
 
   async getTasks(
     req: TypedRequestQueryParams<PaginationParams>,
-    res: Response<Task[] | ErrorResponse>
+    res: Response<PaginatedResponse<Task> | ErrorResponse>
   ) {
     try {
       const page = Number(req.query.page);
@@ -44,7 +45,10 @@ export class TaskController {
         page ?? DEFAULT_PAGINATION_PAGE,
         limit ?? DEFAULT_PAGINATION_LIMIT
       );
-      return res.status(200).json(tasks);
+
+      const nextPage = tasks?.length === limit ? page + 1 : null;
+
+      return res.status(200).json({ items: tasks, next: nextPage });
     } catch (error) {
       if (error instanceof Error) {
         return res.status(500).json({ error: error.message });

@@ -8,14 +8,18 @@ import {
 import { UserStory } from '@prisma/client';
 import {
   ErrorResponse,
+  PaginatedResponse,
   TypedRequestBody,
   TypedRequestQueryParams,
 } from '../../types/global';
 import { PaginationParams } from '../../types/http/pagination.http';
 
+jest.mock('../../services/userStory.service');
+
 describe('UserStoryController', () => {
   let req: Partial<Request>;
   let res: Partial<Response>;
+  let userStoryController: UserStoryController;
 
   const exampleUserStory: UserStory = {
     id: 1,
@@ -35,28 +39,42 @@ describe('UserStoryController', () => {
       status: jest.fn().mockReturnThis(),
       json: jest.fn(),
     };
+    userStoryController = new UserStoryController();
+    jest.clearAllMocks();
   });
 
   describe('getUserStories', () => {
-    it('should return all user stories', async () => {
-      req.query = {
-        page: '1',
-        limit: '10',
-      } as PaginationParams;
-
+    it('should return paginated user stories with nextPage cursor', async () => {
+      req.query = { page: '1', limit: '10' } as unknown as PaginationParams;
       jest
         .spyOn(userStoryService, 'getUserStories')
-        .mockResolvedValue([exampleUserStory]);
+        .mockResolvedValue(Array(10).fill(exampleUserStory));
 
-      const userStoryController = new UserStoryController();
       await userStoryController.getUserStories(
         req as TypedRequestQueryParams<PaginationParams>,
-        res as Response
+        res as Response<PaginatedResponse<UserStory> | ErrorResponse>
       );
 
       expect(userStoryService.getUserStories).toHaveBeenCalledWith(1, 10);
       expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.json).toHaveBeenCalledWith([exampleUserStory]);
+      expect(res.json).toHaveBeenCalledWith({
+        items: Array(10).fill(exampleUserStory),
+        next: 2,
+      });
+    });
+
+    it('should return null nextPage cursor if there are no more user stories', async () => {
+      req.query = { page: '1', limit: '10' } as unknown as PaginationParams;
+      jest.spyOn(userStoryService, 'getUserStories').mockResolvedValue([]);
+
+      await userStoryController.getUserStories(
+        req as TypedRequestQueryParams<PaginationParams>,
+        res as Response<PaginatedResponse<UserStory> | ErrorResponse>
+      );
+
+      expect(userStoryService.getUserStories).toHaveBeenCalledWith(1, 10);
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({ items: [], next: null });
     });
 
     it('should handle errors', async () => {
@@ -64,10 +82,9 @@ describe('UserStoryController', () => {
       req.query = { page: '1', limit: '10' } as unknown as PaginationParams;
       jest.spyOn(userStoryService, 'getUserStories').mockRejectedValue(error);
 
-      const userStoryController = new UserStoryController();
       await userStoryController.getUserStories(
         req as TypedRequestQueryParams<PaginationParams>,
-        res as Response
+        res as Response<PaginatedResponse<UserStory> | ErrorResponse>
       );
 
       expect(userStoryService.getUserStories).toHaveBeenCalledWith(1, 10);
@@ -83,7 +100,6 @@ describe('UserStoryController', () => {
         .spyOn(userStoryService, 'getSingleUserStory')
         .mockResolvedValue(exampleUserStory);
 
-      const userStoryController = new UserStoryController();
       await userStoryController.getSingleUserStory(
         req as Request,
         res as Response
@@ -95,7 +111,6 @@ describe('UserStoryController', () => {
     });
 
     it('should return 400 if userStoryId is not provided', async () => {
-      const userStoryController = new UserStoryController();
       await userStoryController.getSingleUserStory(
         req as Request,
         res as Response
@@ -114,7 +129,6 @@ describe('UserStoryController', () => {
         .spyOn(userStoryService, 'getSingleUserStory')
         .mockRejectedValue(error);
 
-      const userStoryController = new UserStoryController();
       await userStoryController.getSingleUserStory(
         req as Request,
         res as Response
@@ -136,7 +150,6 @@ describe('UserStoryController', () => {
         .spyOn(userStoryService, 'createUserStory')
         .mockResolvedValue(exampleUserStory);
 
-      const userStoryController = new UserStoryController();
       await userStoryController.createUserStory(
         req as TypedRequestBody<NewUserStoryInput>,
         res as Response<UserStory | ErrorResponse>
@@ -148,7 +161,6 @@ describe('UserStoryController', () => {
     });
 
     it('should return 400 if request body is not provided', async () => {
-      const userStoryController = new UserStoryController();
       await userStoryController.createUserStory(
         req as TypedRequestBody<NewUserStoryInput>,
         res as Response<UserStory | ErrorResponse>
@@ -168,7 +180,6 @@ describe('UserStoryController', () => {
       } as NewUserStoryInput;
       jest.spyOn(userStoryService, 'createUserStory').mockRejectedValue(error);
 
-      const userStoryController = new UserStoryController();
       await userStoryController.createUserStory(
         req as TypedRequestBody<NewUserStoryInput>,
         res as Response<UserStory | ErrorResponse>
@@ -195,7 +206,6 @@ describe('UserStoryController', () => {
         .spyOn(userStoryService, 'updateUserStory')
         .mockResolvedValue(updatedUserStory);
 
-      const userStoryController = new UserStoryController();
       await userStoryController.updateUserStory(
         req as TypedRequestBody<UpdateUserStoryInput>,
         res as Response<UserStory | ErrorResponse>
@@ -211,7 +221,6 @@ describe('UserStoryController', () => {
 
     it('should return 400 if request body is not provided', async () => {
       req.params = { userStoryId: '1' };
-      const userStoryController = new UserStoryController();
       await userStoryController.updateUserStory(
         req as TypedRequestBody<UpdateUserStoryInput>,
         res as Response<UserStory | ErrorResponse>
@@ -228,7 +237,6 @@ describe('UserStoryController', () => {
         title: 'Updated User Story',
         description: 'Updated description',
       } as UpdateUserStoryInput;
-      const userStoryController = new UserStoryController();
       await userStoryController.updateUserStory(
         req as TypedRequestBody<UpdateUserStoryInput>,
         res as Response<UserStory | ErrorResponse>
@@ -249,7 +257,6 @@ describe('UserStoryController', () => {
       } as UpdateUserStoryInput;
       jest.spyOn(userStoryService, 'updateUserStory').mockRejectedValue(error);
 
-      const userStoryController = new UserStoryController();
       await userStoryController.updateUserStory(
         req as TypedRequestBody<UpdateUserStoryInput>,
         res as Response<UserStory | ErrorResponse>
@@ -271,7 +278,6 @@ describe('UserStoryController', () => {
         .spyOn(userStoryService, 'deleteUserStory')
         .mockResolvedValue(exampleUserStory);
 
-      const userStoryController = new UserStoryController();
       await userStoryController.deleteUserStory(
         req as Request,
         res as Response
@@ -283,7 +289,6 @@ describe('UserStoryController', () => {
     });
 
     it('should return 400 if userStoryId is not provided', async () => {
-      const userStoryController = new UserStoryController();
       await userStoryController.deleteUserStory(
         req as Request,
         res as Response
@@ -300,7 +305,6 @@ describe('UserStoryController', () => {
       req.params = { userStoryId: '1' };
       jest.spyOn(userStoryService, 'deleteUserStory').mockRejectedValue(error);
 
-      const userStoryController = new UserStoryController();
       await userStoryController.deleteUserStory(
         req as Request,
         res as Response

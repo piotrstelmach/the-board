@@ -2,7 +2,12 @@ import { Request, Response } from 'express';
 import { UserController } from '../user.controller';
 import * as userService from '../../services/user.service';
 import { User } from '@prisma/client';
-import { TypedRequestBody, TypedRequestQueryParams } from '../../types/global';
+import {
+  ErrorResponse,
+  PaginatedResponse,
+  TypedRequestBody,
+  TypedRequestQueryParams,
+} from '../../types/global';
 import { PaginationParams } from '../../types/http/pagination.http';
 import { NewUserInput, UpdateUserInput } from '../../types/http/user.http';
 
@@ -34,33 +39,52 @@ describe('UserController', () => {
   });
 
   describe('getUsers', () => {
-    it('should return all users', async () => {
+    it('should return paginated users with nextPage cursor', async () => {
       req.query = { page: '1', limit: '10' } as unknown as PaginationParams;
-      (userService.getAllUsers as jest.Mock).mockResolvedValue([exampleUser]);
+      jest
+        .spyOn(userService, 'getAllUsers')
+        .mockResolvedValue(Array(10).fill(exampleUser));
 
       await userController.getUsers(
         req as TypedRequestQueryParams<PaginationParams>,
-        res as Response
+        res as Response<PaginatedResponse<User> | ErrorResponse>
       );
 
       expect(userService.getAllUsers).toHaveBeenCalledWith(1, 10);
       expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.json).toHaveBeenCalledWith([exampleUser]);
+      expect(res.json).toHaveBeenCalledWith({
+        items: Array(10).fill(exampleUser),
+        next: 2,
+      });
     });
 
-    it('should handle errors', async () => {
+    it('should return null nextPage cursor if there are no more users', async () => {
       req.query = { page: '1', limit: '10' } as unknown as PaginationParams;
-      (userService.getAllUsers as jest.Mock).mockRejectedValue(
-        new Error('Error')
-      );
+      jest.spyOn(userService, 'getAllUsers').mockResolvedValue([]);
 
       await userController.getUsers(
         req as TypedRequestQueryParams<PaginationParams>,
-        res as Response
+        res as Response<PaginatedResponse<User> | ErrorResponse>
       );
 
+      expect(userService.getAllUsers).toHaveBeenCalledWith(1, 10);
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({ items: [], next: null });
+    });
+
+    it('should handle errors', async () => {
+      const error = new Error('Database error');
+      req.query = { page: '1', limit: '10' } as unknown as PaginationParams;
+      jest.spyOn(userService, 'getAllUsers').mockRejectedValue(error);
+
+      await userController.getUsers(
+        req as TypedRequestQueryParams<PaginationParams>,
+        res as Response<PaginatedResponse<User> | ErrorResponse>
+      );
+
+      expect(userService.getAllUsers).toHaveBeenCalledWith(1, 10);
       expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith({ error: 'Error' });
+      expect(res.json).toHaveBeenCalledWith({ error: error.message });
     });
   });
 

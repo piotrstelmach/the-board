@@ -10,6 +10,11 @@ export interface TypedRequestQueryParams<T> extends express.Request {
   query: T;
 }
 
+export type PaginatedResponse<T> = {
+  items: T[];
+  next: number | null;
+};
+
 export interface TypedRequestBodyAndQuery<T, P> extends express.Request {
   body: T;
   query: P;

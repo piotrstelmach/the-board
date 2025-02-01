@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import * as userStoryService from '../services/userStory.service';
 import {
   ErrorResponse,
+  PaginatedResponse,
   TypedRequestBody,
   TypedRequestQueryParams,
 } from '../types/global';
@@ -19,7 +20,7 @@ import {
 export class UserStoryController {
   async getUserStories(
     req: TypedRequestQueryParams<PaginationParams>,
-    res: Response<UserStory[] | ErrorResponse>
+    res: Response<PaginatedResponse<UserStory> | ErrorResponse>
   ) {
     try {
       const page = Number(req.query.page);
@@ -29,7 +30,10 @@ export class UserStoryController {
         page ?? DEFAULT_PAGINATION_PAGE,
         limit ?? DEFAULT_PAGINATION_LIMIT
       );
-      return res.status(200).json(userStories);
+
+      const nextPage = userStories?.length === limit ? page + 1 : null;
+
+      return res.status(200).json({ items: userStories, next: nextPage });
     } catch (error) {
       if (error instanceof Error) {
         return res.status(500).json({ error: error.message });
