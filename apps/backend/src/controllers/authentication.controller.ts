@@ -48,11 +48,11 @@ export class AuthenticationController {
             expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
           })
           .status(200)
-          .send({ accessToken });
+          .json({ accessToken });
       }
     } catch (e) {
       if (e instanceof Error) {
-        return res.status(400).send({ error: e.message });
+        return res.status(400).json({ error: e.message });
       }
     }
   }
@@ -84,11 +84,11 @@ export class AuthenticationController {
             expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
           })
           .status(200)
-          .send({ ...user, accessToken });
+          .json({ ...user, accessToken });
       }
     } catch (e) {
       if (e instanceof Error) {
-        return res.status(400).send({ error: e.message });
+        return res.status(400).json({ error: e.message });
       }
     }
   }
@@ -98,7 +98,7 @@ export class AuthenticationController {
       res.clearCookie('refreshToken').status(200).send();
     } catch (e) {
       if (e instanceof Error) {
-        return res.status(400).send({ error: e.message });
+        return res.status(400).json({ error: e.message });
       }
     }
   }
@@ -110,9 +110,12 @@ export class AuthenticationController {
     try {
       const refreshToken = req.cookies['refreshToken'];
       if (!refreshToken) {
-        return res.status(400).send({ error: 'No refresh token provided' });
+        return res.status(400).json({ error: 'No refresh token provided' });
       }
-      const decoded = jwt.verify(refreshToken, getRefreshTokenSecret()) as TokenPayload;
+      const decoded = jwt.verify(
+        refreshToken,
+        getRefreshTokenSecret()
+      ) as TokenPayload;
 
       const newPayload: TokenPayload = { user_id: decoded.user_id };
       const newAccessToken = jwt.sign(newPayload, getJwtSecret(), {
@@ -130,10 +133,10 @@ export class AuthenticationController {
           expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         })
         .status(200)
-        .send({ accessToken: newAccessToken });
+        .json({ accessToken: newAccessToken });
     } catch (e) {
       if (e instanceof Error) {
-        return res.status(400).send({ error: e.message });
+        return res.status(400).json({ error: e.message });
       }
     }
   }
