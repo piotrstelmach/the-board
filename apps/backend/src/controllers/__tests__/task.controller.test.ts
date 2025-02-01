@@ -2,7 +2,12 @@ import { Request, Response } from 'express';
 import { TaskController } from '../task.controller';
 import * as taskService from '../../services/task.service';
 import { Task, TaskStatus } from '@prisma/client';
-import { TypedRequestBody, TypedRequestQueryParams } from '../../types/global';
+import {
+  ErrorResponse,
+  PaginatedResponse,
+  TypedRequestBody,
+  TypedRequestQueryParams,
+} from '../../types/global';
 import { PaginationParams } from '../../types/http/pagination.http';
 import { NewTaskInput, UpdateTaskInput } from '../../types/http/task.http';
 
@@ -83,33 +88,52 @@ describe('TaskController', () => {
   });
 
   describe('getTasks', () => {
-    it('should return all tasks', async () => {
+    it('should return paginated tasks with nextPage cursor', async () => {
       req.query = { page: '1', limit: '10' } as unknown as PaginationParams;
-      (taskService.getAllTasks as jest.Mock).mockResolvedValue([exampleTask]);
+      jest
+        .spyOn(taskService, 'getAllTasks')
+        .mockResolvedValue(Array(10).fill(exampleTask));
 
       await taskController.getTasks(
         req as TypedRequestQueryParams<PaginationParams>,
-        res as Response
+        res as Response<PaginatedResponse<Task> | ErrorResponse>
       );
 
       expect(taskService.getAllTasks).toHaveBeenCalledWith(1, 10);
       expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.json).toHaveBeenCalledWith([exampleTask]);
+      expect(res.json).toHaveBeenCalledWith({
+        items: Array(10).fill(exampleTask),
+        next: 2,
+      });
     });
 
-    it('should handle errors', async () => {
+    it('should return null nextPage cursor if there are no more tasks', async () => {
       req.query = { page: '1', limit: '10' } as unknown as PaginationParams;
-      (taskService.getAllTasks as jest.Mock).mockRejectedValue(
-        new Error('Error')
-      );
+      jest.spyOn(taskService, 'getAllTasks').mockResolvedValue([]);
 
       await taskController.getTasks(
         req as TypedRequestQueryParams<PaginationParams>,
-        res as Response
+        res as Response<PaginatedResponse<Task> | ErrorResponse>
       );
 
+      expect(taskService.getAllTasks).toHaveBeenCalledWith(1, 10);
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({ items: [], next: null });
+    });
+
+    it('should handle errors', async () => {
+      const error = new Error('Database error');
+      req.query = { page: '1', limit: '10' } as unknown as PaginationParams;
+      jest.spyOn(taskService, 'getAllTasks').mockRejectedValue(error);
+
+      await taskController.getTasks(
+        req as TypedRequestQueryParams<PaginationParams>,
+        res as Response<PaginatedResponse<Task> | ErrorResponse>
+      );
+
+      expect(taskService.getAllTasks).toHaveBeenCalledWith(1, 10);
       expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith({ error: 'Error' });
+      expect(res.json).toHaveBeenCalledWith({ error: error.message });
     });
   });
 

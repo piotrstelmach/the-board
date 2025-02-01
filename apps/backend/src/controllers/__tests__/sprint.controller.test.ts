@@ -8,14 +8,18 @@ import {
 import { Sprint } from '@prisma/client';
 import {
   ErrorResponse,
+  PaginatedResponse,
   TypedRequestBody,
   TypedRequestQueryParams,
 } from '../../types/global';
 import { PaginationParams } from '../../types/http/pagination.http';
 
+jest.mock('../../services/sprint.service');
+
 describe('SprintController', () => {
   let req: Partial<Request>;
   let res: Partial<Response>;
+  let sprintController: SprintController;
 
   const exampleSprint: Sprint = {
     id: 1,
@@ -34,24 +38,42 @@ describe('SprintController', () => {
       status: jest.fn().mockReturnThis(),
       json: jest.fn(),
     };
+    sprintController = new SprintController();
+    jest.clearAllMocks();
   });
 
   describe('getSprints', () => {
-    it('should return all sprints', async () => {
+    it('should return paginated sprints with nextPage cursor', async () => {
       req.query = { page: '1', limit: '10' } as unknown as PaginationParams;
       jest
         .spyOn(sprintService, 'getAllSprints')
-        .mockResolvedValue([exampleSprint]);
+        .mockResolvedValue(Array(10).fill(exampleSprint));
 
-      const sprintController = new SprintController();
       await sprintController.getSprints(
         req as TypedRequestQueryParams<PaginationParams>,
-        res as Response
+        res as Response<PaginatedResponse<Sprint> | ErrorResponse>
       );
 
       expect(sprintService.getAllSprints).toHaveBeenCalledWith(10, 1);
       expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.json).toHaveBeenCalledWith([exampleSprint]);
+      expect(res.json).toHaveBeenCalledWith({
+        items: Array(10).fill(exampleSprint),
+        next: 2,
+      });
+    });
+
+    it('should return null nextPage cursor if there are no more sprints', async () => {
+      req.query = { page: '1', limit: '10' } as unknown as PaginationParams;
+      jest.spyOn(sprintService, 'getAllSprints').mockResolvedValue([]);
+
+      await sprintController.getSprints(
+        req as TypedRequestQueryParams<PaginationParams>,
+        res as Response<PaginatedResponse<Sprint> | ErrorResponse>
+      );
+
+      expect(sprintService.getAllSprints).toHaveBeenCalledWith(10, 1);
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({ items: [], next: null });
     });
 
     it('should handle errors', async () => {
@@ -59,10 +81,9 @@ describe('SprintController', () => {
       req.query = { page: '1', limit: '10' } as unknown as PaginationParams;
       jest.spyOn(sprintService, 'getAllSprints').mockRejectedValue(error);
 
-      const sprintController = new SprintController();
       await sprintController.getSprints(
         req as TypedRequestQueryParams<PaginationParams>,
-        res as Response
+        res as Response<PaginatedResponse<Sprint> | ErrorResponse>
       );
 
       expect(sprintService.getAllSprints).toHaveBeenCalledWith(10, 1);
@@ -78,7 +99,6 @@ describe('SprintController', () => {
         .spyOn(sprintService, 'getSprintById')
         .mockResolvedValue(exampleSprint);
 
-      const sprintController = new SprintController();
       await sprintController.getSingleSprint(req as Request, res as Response);
 
       expect(sprintService.getSprintById).toHaveBeenCalledWith(1);
@@ -87,7 +107,6 @@ describe('SprintController', () => {
     });
 
     it('should return 400 if sprintId is not provided', async () => {
-      const sprintController = new SprintController();
       await sprintController.getSingleSprint(req as Request, res as Response);
 
       expect(res.status).toHaveBeenCalledWith(400);
@@ -99,7 +118,6 @@ describe('SprintController', () => {
       req.params = { sprintId: '1' };
       jest.spyOn(sprintService, 'getSprintById').mockRejectedValue(error);
 
-      const sprintController = new SprintController();
       await sprintController.getSingleSprint(req as Request, res as Response);
 
       expect(sprintService.getSprintById).toHaveBeenCalledWith(1);
@@ -120,7 +138,6 @@ describe('SprintController', () => {
         .spyOn(sprintService, 'createNewSprint')
         .mockResolvedValue(exampleSprint);
 
-      const sprintController = new SprintController();
       await sprintController.createSprint(
         req as TypedRequestBody<NewSprintInput>,
         res as Response<Sprint | ErrorResponse>
@@ -132,7 +149,6 @@ describe('SprintController', () => {
     });
 
     it('should return 400 if request body is not provided', async () => {
-      const sprintController = new SprintController();
       await sprintController.createSprint(
         req as TypedRequestBody<NewSprintInput>,
         res as Response<Sprint | ErrorResponse>
@@ -154,7 +170,6 @@ describe('SprintController', () => {
       } as NewSprintInput;
       jest.spyOn(sprintService, 'createNewSprint').mockRejectedValue(error);
 
-      const sprintController = new SprintController();
       await sprintController.createSprint(
         req as TypedRequestBody<NewSprintInput>,
         res as Response<Sprint | ErrorResponse>
@@ -178,7 +193,6 @@ describe('SprintController', () => {
         .spyOn(sprintService, 'updateExistingSprint')
         .mockResolvedValue(updatedSprint);
 
-      const sprintController = new SprintController();
       await sprintController.updateSprint(
         req as TypedRequestBody<UpdateSprintInput>,
         res as Response<Sprint | ErrorResponse>
@@ -194,7 +208,6 @@ describe('SprintController', () => {
 
     it('should return 400 if request body is not provided', async () => {
       req.params = { sprintId: '1' };
-      const sprintController = new SprintController();
       await sprintController.updateSprint(
         req as TypedRequestBody<UpdateSprintInput>,
         res as Response<Sprint | ErrorResponse>
@@ -211,7 +224,6 @@ describe('SprintController', () => {
         name: 'Updated Sprint',
         goal: 'Updated goal',
       } as UpdateSprintInput;
-      const sprintController = new SprintController();
       await sprintController.updateSprint(
         req as TypedRequestBody<UpdateSprintInput>,
         res as Response<Sprint | ErrorResponse>
@@ -232,7 +244,6 @@ describe('SprintController', () => {
         .spyOn(sprintService, 'updateExistingSprint')
         .mockRejectedValue(error);
 
-      const sprintController = new SprintController();
       await sprintController.updateSprint(
         req as TypedRequestBody<UpdateSprintInput>,
         res as Response<Sprint | ErrorResponse>
@@ -254,7 +265,6 @@ describe('SprintController', () => {
         .spyOn(sprintService, 'deleteSprintById')
         .mockResolvedValue(exampleSprint);
 
-      const sprintController = new SprintController();
       await sprintController.deleteSprint(req as Request, res as Response);
 
       expect(sprintService.deleteSprintById).toHaveBeenCalledWith(1);
@@ -263,7 +273,6 @@ describe('SprintController', () => {
     });
 
     it('should return 400 if sprintId is not provided', async () => {
-      const sprintController = new SprintController();
       await sprintController.deleteSprint(req as Request, res as Response);
 
       expect(res.status).toHaveBeenCalledWith(400);
@@ -275,7 +284,6 @@ describe('SprintController', () => {
       req.params = { sprintId: '1' };
       jest.spyOn(sprintService, 'deleteSprintById').mockRejectedValue(error);
 
-      const sprintController = new SprintController();
       await sprintController.deleteSprint(req as Request, res as Response);
 
       expect(sprintService.deleteSprintById).toHaveBeenCalledWith(1);

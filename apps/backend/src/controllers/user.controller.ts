@@ -1,5 +1,6 @@
 import {
   ErrorResponse,
+  PaginatedResponse,
   TypedRequestBody,
   TypedRequestQueryParams,
 } from '../types/global';
@@ -27,7 +28,7 @@ import {
 export class UserController {
   async getUsers(
     req: TypedRequestQueryParams<PaginationParams>,
-    res: Response<User[] | ErrorResponse>
+    res: Response<PaginatedResponse<User> | ErrorResponse>
   ) {
     try {
       const page = Number(req.query.page);
@@ -37,7 +38,10 @@ export class UserController {
         page ?? DEFAULT_PAGINATION_PAGE,
         limit ?? DEFAULT_PAGINATION_LIMIT
       );
-      return res.status(200).json(users);
+
+      const nextPage = users?.length === limit ? page + 1 : null;
+
+      return res.status(200).json({ items: users, next: nextPage });
     } catch (error) {
       if (error instanceof Error) {
         return res.status(500).json({ error: error.message });
