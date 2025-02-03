@@ -1,5 +1,5 @@
 import { Link } from 'react-router';
-import { AppRoutes } from './config/routes';
+import { AppRoutes } from './router';
 
 export function App() {
   return (
