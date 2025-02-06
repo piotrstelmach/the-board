@@ -1,7 +1,10 @@
 import { Link } from 'react-router';
 import { AppRoutes } from './router';
+import { useRefreshToken } from '../hooks/useRefreshToken';
 
 export function App() {
+  useRefreshToken();
+
   return (
     <div>
       <br />

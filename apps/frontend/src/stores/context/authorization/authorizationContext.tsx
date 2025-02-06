@@ -13,10 +13,10 @@ const initialState = {
   token: null,
 };
 
-const AuthorizationStateContext =
+export const AuthorizationStateContext =
   createContext<AuthorizationContextType>(initialState);
 
-const AuthorizationDispatchContext = createContext<
+export const AuthorizationDispatchContext = createContext<
   React.Dispatch<AuthorizationAction>
   // eslint-disable-next-line @typescript-eslint/no-empty-function
 >(() => {});
