@@ -1,6 +1,7 @@
 import { Link } from 'react-router';
 import { AppRoutes } from './router';
 import { useRefreshToken } from '../hooks/useRefreshToken';
+import { ThemeSwitchButton } from '../components/themeSwitchButton';
 
 export function App() {
   useRefreshToken();
@@ -26,6 +27,7 @@ export function App() {
           </li>
         </ul>
       </div>
+      <ThemeSwitchButton />
       <AppRoutes />
     </div>
   );
