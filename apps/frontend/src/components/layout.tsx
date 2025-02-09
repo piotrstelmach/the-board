@@ -1,3 +1,4 @@
+import React from 'react';
 import {
   Button,
   IconButton,
@@ -5,22 +6,21 @@ import {
   Navbar,
   Typography,
 } from '@material-tailwind/react';
-import React from 'react';
+import { Link } from 'react-router';
+import { ThemeSwitchButton } from './themeSwitchButton';
 
-export const Layout = () => {
+export const Layout = ({ children }: React.PropsWithChildren) => {
   const [openNav, setOpenNav] = React.useState(false);
 
   const navList = (
-    <ul className="mt-2 mb-4 flex flex-col gap-2 lg:mb-0 lg:mt-0 lg:flex-row lg:items-center lg:gap-6">
+    <ul className="mt-2 mb-4 flex flex-col gap-2 lg:mb-0 lg:mt-0 lg:flex-row lg:items-center lg:gap-6 text-text-primary-light dark:text-text-primary-dark">
       <Typography
         as="li"
         variant="small"
         color="blue-gray"
         className="p-1 font-normal"
       >
-        <a href="#" className="flex items-center">
-          Pages
-        </a>
+        <Link to="/">Home</Link>
       </Typography>
       <Typography
         as="li"
@@ -28,9 +28,7 @@ export const Layout = () => {
         color="blue-gray"
         className="p-1 font-normal"
       >
-        <a href="#" className="flex items-center">
-          Account
-        </a>
+        <Link to="/dashboard">Dashboard</Link>
       </Typography>
       <Typography
         as="li"
@@ -38,19 +36,7 @@ export const Layout = () => {
         color="blue-gray"
         className="p-1 font-normal"
       >
-        <a href="#" className="flex items-center">
-          Blocks
-        </a>
-      </Typography>
-      <Typography
-        as="li"
-        variant="small"
-        color="blue-gray"
-        className="p-1 font-normal"
-      >
-        <a href="#" className="flex items-center">
-          Docs
-        </a>
+        <ThemeSwitchButton />
       </Typography>
     </ul>
   );
@@ -63,27 +49,27 @@ export const Layout = () => {
   }, []);
 
   return (
-    <Navbar className="mx-auto max-w-screen-xl px-6 py-3">
-      <div className="flex items-center justify-between text-blue-gray-900">
+    <Navbar className="mx-auto max-w-screen-xl px-6 py-3 bg-surface-light dark:bg-surface-dark">
+      <div className="flex items-center justify-between">
         <Typography
           as="a"
-          href="#"
-          className="mr-4 cursor-pointer py-1.5 font-medium"
+          href="/"
+          className="mr-4 cursor-pointer py-1.5 font-medium text-text-primary-light dark:text-text-primary-dark"
         >
-          Material Tailwind
+          The Board
         </Typography>
         <div className="flex items-center gap-4">
           <div className="mr-4 hidden lg:block">{navList}</div>
           <div className="flex items-center gap-x-1">
             <Button variant="text" size="sm" className="hidden lg:inline-block">
-              <span>Log In</span>
+              <Link to="/login">Login</Link>
             </Button>
             <Button
               variant="gradient"
               size="sm"
               className="hidden lg:inline-block"
             >
-              <span>Sign in</span>
+              <Link to="/register">Sign In</Link>
             </Button>
           </div>
           <IconButton
@@ -129,10 +115,10 @@ export const Layout = () => {
         {navList}
         <div className="flex items-center gap-x-1">
           <Button fullWidth variant="text" size="sm" className="">
-            <span>Log In</span>
+            <Link to="/login">Login</Link>
           </Button>
           <Button fullWidth variant="gradient" size="sm" className="">
-            <span>Sign in</span>
+            <Link to="/register">Sign In</Link>
           </Button>
         </div>
       </MobileNav>

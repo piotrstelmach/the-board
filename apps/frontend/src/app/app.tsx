@@ -1,7 +1,7 @@
-import { Link } from 'react-router';
-import { AppRoutes } from './router';
+// import { Link } from 'react-router';
+// import { AppRoutes } from './router';
 import { useRefreshToken } from '../hooks/useRefreshToken';
-import { ThemeSwitchButton } from '../components/themeSwitchButton';
+// import { ThemeSwitchButton } from '../components/themeSwitchButton';
 import { Layout } from '../components/layout';
 
 export function App() {

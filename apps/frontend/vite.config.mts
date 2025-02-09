@@ -1,4 +1,7 @@
 import { defineConfig } from 'vite';
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-expect-error
+import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({
@@ -12,7 +15,7 @@ export default defineConfig({
     port: 4300,
     host: 'localhost',
   },
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
   // Uncomment this if you are using workers.
   // worker: {
   //  plugins: [ nxViteTsPaths() ],
