@@ -1,9 +1,10 @@
 import { AuthorizationContextType } from './authorizationContext';
 import { ActionTypes } from './actionTypes';
+import { LoggedUser } from '../../../types/loggedUser';
 
 export type AuthorizationAction =
   | { type: ActionTypes.SET_TOKEN; payload: { token: string } }
-  | { type: ActionTypes.SET_USER; payload: { user: any } }
+  | { type: ActionTypes.SET_USER; payload: { user: LoggedUser } }
   | { type: ActionTypes.SET_AUTHORIZED; payload: { isAuthorized: boolean } };
 
 export const AuthorizationReducer = (
