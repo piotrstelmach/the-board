@@ -1,4 +1,5 @@
 import express from 'express';
+import cors from 'cors';
 import * as path from 'path';
 import { prismaClient } from './utils/database';
 import { redisClient } from './utils/redisClient';
@@ -14,12 +15,13 @@ const app = express();
 app.use('/assets', express.static(path.join(__dirname, 'assets')));
 app.use(express.json());
 app.use(cookieParser());
+app.use(cors());
 
-app.use('/user', userRoutes)
-app.use('/task', taskRoutes)
-app.use('/sprint', sprintRoutes)
-app.use('/userStory', userStoryRoutes)
-app.use('/auth', authenticationRoutes)
+app.use('/user', userRoutes);
+app.use('/task', taskRoutes);
+app.use('/sprint', sprintRoutes);
+app.use('/userStory', userStoryRoutes);
+app.use('/auth', authenticationRoutes);
 
 app.get('/api', (req, res) => {
   res.send({ message: 'Welcome to backend!' });
