@@ -1,62 +1,127 @@
+import { useForm } from '@tanstack/react-form';
+import { unprotectedRoute } from '../../../../utils/api';
+import React from 'react';
+import { AuthorizationDispatchContext } from '../../../../stores/context/authorization/authorizationContext';
+import { useNavigate } from 'react-router';
+import { RegisterResponse } from '../../types/validation/registerReponse';
+import { ActionTypes } from '../../../../stores/context/authorization/actionTypes';
+
 export const RegisterPage = () => {
+  const dispatch = React.useContext(AuthorizationDispatchContext);
+  const navigate = useNavigate();
+
+  const { Field, handleSubmit } = useForm({
+    defaultValues: {
+      name: '',
+      email: '',
+      password: '',
+    },
+    onSubmit: async ({ value }) => {
+      try {
+        const { data } = await unprotectedRoute<RegisterResponse>(
+          '/auth/register',
+          'post',
+          null,
+          value
+        );
+        if (data?.accessToken) {
+          dispatch({
+            type: ActionTypes.SET_TOKEN,
+            payload: { token: data.accessToken },
+          });
+          dispatch({
+            type: ActionTypes.SET_AUTHORIZED,
+            payload: { isAuthorized: true },
+          });
+          navigate('/dashboard');
+        }
+      } catch (e) {
+        console.log(e);
+      }
+    },
+  });
+
   return (
     <div className="container mx-auto p-8">
       <div className="mx-auto max-w-sm bg-surface-light dark:bg-surface-dark flex flex-col gap-8 justify-center p-8 rounded-2xl shadow-2xl">
         <h5 className="ml-3 text-slate-800 text-xl font-semibold text-center">
           Register
         </h5>
-        <form action="post" className="flex flex-col gap-8">
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            await handleSubmit();
+          }}
+          className="flex flex-col gap-8"
+        >
           <div className="w-full max-w-sm min-w-[200px]">
-            <label htmlFor="name" className="block mb-2 text-sm text-slate-600">
-              Name
-            </label>
-            <input
-              type="text"
-              name="name"
-              className="w-full bg-transparent placeholder:text-slate-400 text-slate-700 text-sm border border-slate-200 rounded-md px-3 py-2 transition duration-300 ease focus:outline-none focus:border-slate-400 hover:border-slate-300 shadow-sm focus:shadow"
-              placeholder="Name"
+            <Field
+              name={'name'}
+              children={(field) => (
+                <>
+                  <label
+                    htmlFor={field.name}
+                    className="block mb-2 text-sm text-slate-600"
+                  >
+                    Name
+                  </label>
+                  <input
+                    className="w-full bg-transparent placeholder:text-slate-400 text-slate-700 text-sm border border-slate-200 rounded-md px-3 py-2 transition duration-300 ease focus:outline-none focus:border-slate-400 hover:border-slate-300 shadow-sm focus:shadow"
+                    type="text"
+                    name={field.name}
+                    value={field.state.value}
+                    onChange={(e) => field.handleChange(e.target.value)}
+                    placeholder="Name"
+                  />
+                </>
+              )}
             />
           </div>
           <div className="w-full max-w-sm min-w-[200px]">
-            <label
-              htmlFor="login"
-              className="block mb-2 text-sm text-slate-600"
-            >
-              Login
-            </label>
-            <input
-              type="text"
-              name="login"
-              className="w-full bg-transparent placeholder:text-slate-400 text-slate-700 text-sm border border-slate-200 rounded-md px-3 py-2 transition duration-300 ease focus:outline-none focus:border-slate-400 hover:border-slate-300 shadow-sm focus:shadow"
-              placeholder="Login"
+            <Field
+              name={'email'}
+              children={(field) => (
+                <>
+                  <label
+                    htmlFor={field.name}
+                    className="block mb-2 text-sm text-slate-600"
+                  >
+                    Email
+                  </label>
+                  <input
+                    className="w-full bg-transparent placeholder:text-slate-400 text-slate-700 text-sm border border-slate-200 rounded-md px-3 py-2 transition duration-300 ease focus:outline-none focus:border-slate-400 hover:border-slate-300 shadow-sm focus:shadow"
+                    type="email"
+                    name={field.name}
+                    value={field.state.value}
+                    onChange={(e) => field.handleChange(e.target.value)}
+                    placeholder="Email"
+                  />
+                </>
+              )}
             />
           </div>
           <div className="w-full max-w-sm min-w-[200px]">
-            <label
-              htmlFor="password"
-              className="block mb-2 text-sm text-slate-600"
-            >
-              Password
-            </label>
-            <input
-              name="password"
-              type="password"
-              className="w-full bg-transparent placeholder:text-slate-400 text-slate-700 text-sm border border-slate-200 rounded-md px-3 py-2 transition duration-300 ease focus:outline-none focus:border-slate-400 hover:border-slate-300 shadow-sm focus:shadow"
-              placeholder="Password"
-            />
-          </div>
-          <div className="w-full max-w-sm min-w-[200px]">
-            <label
-              htmlFor="password_repeat"
-              className="block mb-2 text-sm text-slate-600"
-            >
-              Password
-            </label>
-            <input
-              name="password_repeat"
-              type="password"
-              className="w-full bg-transparent placeholder:text-slate-400 text-slate-700 text-sm border border-slate-200 rounded-md px-3 py-2 transition duration-300 ease focus:outline-none focus:border-slate-400 hover:border-slate-300 shadow-sm focus:shadow"
-              placeholder="Repeat password"
+            <Field
+              name={'password'}
+              children={(field) => (
+                <>
+                  <label
+                    htmlFor={field.name}
+                    className="block mb-2 text-sm text-slate-600"
+                  >
+                    Password
+                  </label>
+                  <input
+                    className="w-full bg-transparent placeholder:text-slate-400 text-slate-700 text-sm border border-slate-200 rounded-md px-3 py-2 transition duration-300 ease focus:outline-none focus:border-slate-400 hover:border-slate-300 shadow-sm focus:shadow"
+                    type="password"
+                    name={field.name}
+                    value={field.state.value}
+                    onChange={(e) => field.handleChange(e.target.value)}
+                    placeholder="Password"
+                  />
+                </>
+              )}
             />
           </div>
           <button

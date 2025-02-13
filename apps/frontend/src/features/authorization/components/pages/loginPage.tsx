@@ -5,13 +5,15 @@ import { LoginResponse } from '../../types/validation/loginResponse';
 import { AuthorizationDispatchContext } from '../../../../stores/context/authorization/authorizationContext';
 import { ActionTypes } from '../../../../stores/context/authorization/actionTypes';
 import { mapLoggedUser } from '../../../../services/userMapper';
+import { useNavigate } from 'react-router';
 
 export const LoginPage = () => {
   const dispatch = React.useContext(AuthorizationDispatchContext);
+  const navigate = useNavigate();
 
   const { Field, handleSubmit } = useForm({
     defaultValues: {
-      login: '',
+      email: '',
       password: '',
     },
     onSubmit: async ({ value }) => {
@@ -35,6 +37,7 @@ export const LoginPage = () => {
             type: ActionTypes.SET_USER,
             payload: { user: mapLoggedUser(data) },
           });
+          navigate('/dashboard');
         }
       } catch (error) {
         console.error(error);
@@ -58,7 +61,7 @@ export const LoginPage = () => {
         >
           <div className="w-full max-w-sm min-w-[200px]">
             <Field
-              name="login"
+              name="email"
               children={(field) => (
                 <>
                   <label
@@ -68,7 +71,7 @@ export const LoginPage = () => {
                     Login
                   </label>
                   <input
-                    type="text"
+                    type="email"
                     name={field.name}
                     className="w-full bg-transparent placeholder:text-slate-400 text-slate-700 text-sm border border-slate-200 rounded-md px-3 py-2 transition duration-300 ease focus:outline-none focus:border-slate-400 hover:border-slate-300 shadow-sm focus:shadow"
                     placeholder={field.name}
