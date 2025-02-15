@@ -6,6 +6,7 @@ import * as userService from './user.service';
 import { User } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import { hashPassword } from '../utils/passwd';
+import { excludePropertyFromObject } from '../utils/object';
 
 const DEFAULT_ROLE = 1;
 
@@ -29,10 +30,10 @@ export const loginUser: (
 ) => Promise<AuthUserResult | undefined> = async (
   data: LoginUserInput
 ): Promise<AuthUserResult | undefined> => {
-  const user: User = await userService.getUserByEmail(data.email);
+  const user = await userService.getUserByEmail(data.email);
   const matchPassword = await bcrypt.compare(data.password, user.password);
   if (matchPassword) {
-    return user as AuthUserResult;
+    return excludePropertyFromObject(user, 'password');
   } else {
     throw new Error('Invalid password');
   }

@@ -24,7 +24,7 @@ type TokenResponse = {
 export class AuthenticationController {
   async registerUser(
     req: TypedRequestBody<RegisterUserInput>,
-    res: Response<TokenResponse | ErrorResponse>
+    res: Response<(AuthUserResult & TokenResponse) | ErrorResponse>
   ) {
     try {
       const user: AuthUserResult | undefined =
@@ -48,7 +48,7 @@ export class AuthenticationController {
             expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
           })
           .status(200)
-          .json({ accessToken });
+          .json({ accessToken, ...user });
       }
     } catch (e) {
       if (e instanceof Error) {

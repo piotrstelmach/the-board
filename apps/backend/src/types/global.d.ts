@@ -1,5 +1,6 @@
 import { ParamsDictionary } from 'express-serve-static-core';
 import express from 'express';
+import { User } from '@prisma/client';
 
 export interface TypedRequestBody<T> extends express.Request {
   body: T;
@@ -40,3 +41,5 @@ export type ControllerTypedHandler<T, R, U> = (
   req: TypedRequestBody<T>,
   res: express.Response<R>
 ) => Promise<U>;
+
+export type ResultUser = Omit<User, 'password'>;
