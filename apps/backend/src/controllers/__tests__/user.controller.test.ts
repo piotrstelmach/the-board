@@ -5,6 +5,7 @@ import { User } from '@prisma/client';
 import {
   ErrorResponse,
   PaginatedResponse,
+  ResultUser,
   TypedRequestBody,
   TypedRequestQueryParams,
 } from '../../types/global';
@@ -47,7 +48,7 @@ describe('UserController', () => {
 
       await userController.getUsers(
         req as TypedRequestQueryParams<PaginationParams>,
-        res as Response<PaginatedResponse<User> | ErrorResponse>
+        res as Response<PaginatedResponse<ResultUser> | ErrorResponse>
       );
 
       expect(userService.getAllUsers).toHaveBeenCalledWith(1, 10);
@@ -64,7 +65,7 @@ describe('UserController', () => {
 
       await userController.getUsers(
         req as TypedRequestQueryParams<PaginationParams>,
-        res as Response<PaginatedResponse<User> | ErrorResponse>
+        res as Response<PaginatedResponse<ResultUser> | ErrorResponse>
       );
 
       expect(userService.getAllUsers).toHaveBeenCalledWith(1, 10);
@@ -79,7 +80,7 @@ describe('UserController', () => {
 
       await userController.getUsers(
         req as TypedRequestQueryParams<PaginationParams>,
-        res as Response<PaginatedResponse<User> | ErrorResponse>
+        res as Response<PaginatedResponse<ResultUser> | ErrorResponse>
       );
 
       expect(userService.getAllUsers).toHaveBeenCalledWith(1, 10);

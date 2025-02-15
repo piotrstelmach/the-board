@@ -4,6 +4,7 @@ import { NewUserInput, UpdateUserInput } from '../types/http/user.http';
 import { hashPassword } from '../utils/passwd';
 import { redisClient } from '../utils/redisClient';
 import { mapRedisHash, saveToRedisHash } from '../utils/redisCache';
+import { ResultUser } from '../types/global';
 
 const USER_CACHE_NAME = 'user';
 const USER_PAGINATE_CACHE_NAME = 'pagination:user';
@@ -11,7 +12,7 @@ const USER_PAGINATE_CACHE_NAME = 'pagination:user';
 export const getAllUsers = async (
   page: number,
   limit: number
-): Promise<User[]> => {
+): Promise<ResultUser[]> => {
   try {
     const cache = await redisClient.hGetAll(
       `${USER_PAGINATE_CACHE_NAME}:page${page}limit:${limit}`
@@ -25,7 +26,7 @@ export const getAllUsers = async (
       });
       await redisClient.hSet(
         `${USER_PAGINATE_CACHE_NAME}:page${page}limit:${limit}`,
-        saveToRedisHash<User[]>(users)
+        saveToRedisHash<ResultUser[]>(users)
       );
       return users;
     }
@@ -34,13 +35,13 @@ export const getAllUsers = async (
   }
 };
 
-export const getUserById = async (userId: number): Promise<User> => {
+export const getUserById = async (userId: number): Promise<ResultUser> => {
   try {
     const cache = await redisClient.hGetAll(`${USER_CACHE_NAME}:${userId}`);
     if (Object.keys(cache)?.length) {
       return mapRedisHash<User>(cache);
     } else {
-      const user: User | null = await prismaClient.user.findUnique({
+      const user: ResultUser | null = await prismaClient.user.findUnique({
         where: {
           id: userId,
         },
@@ -50,7 +51,7 @@ export const getUserById = async (userId: number): Promise<User> => {
       } else {
         await redisClient.hSet(
           `${USER_CACHE_NAME}:${userId}`,
-          saveToRedisHash<User>(user)
+          saveToRedisHash<ResultUser>(user)
         );
         return user;
       }
@@ -62,6 +63,9 @@ export const getUserById = async (userId: number): Promise<User> => {
 
 export const getUserByEmail = async (email: string): Promise<User> => {
   const user: User | null = await prismaClient.user.findUnique({
+    omit: {
+      password: false,
+    },
     where: {
       email: email,
     },
@@ -74,7 +78,9 @@ export const getUserByEmail = async (email: string): Promise<User> => {
   }
 };
 
-export const createNewUser = async (data: NewUserInput): Promise<User> => {
+export const createNewUser = async (
+  data: NewUserInput
+): Promise<ResultUser> => {
   const hashedPassword = await hashPassword(data.password);
   return prismaClient.user.create({
     data: {
@@ -87,8 +93,8 @@ export const createNewUser = async (data: NewUserInput): Promise<User> => {
 export const updateExistingUser = async (
   userId: number,
   data: UpdateUserInput
-): Promise<User> => {
-  const user: User | null = await prismaClient.user.findUnique({
+): Promise<ResultUser> => {
+  const user: ResultUser | null = await prismaClient.user.findUnique({
     where: {
       id: userId,
     },
@@ -109,8 +115,8 @@ export const updateExistingUser = async (
   }
 };
 
-export const deleteUserById = async (userId: number): Promise<User> => {
-  const user: User | null = await prismaClient.user.findUnique({
+export const deleteUserById = async (userId: number): Promise<ResultUser> => {
+  const user: ResultUser | null = await prismaClient.user.findUnique({
     where: {
       id: userId,
     },
@@ -130,9 +136,9 @@ export const deleteUserById = async (userId: number): Promise<User> => {
 export const changeUserRole = async (
   userId: number,
   newRole: number
-): Promise<User> => {
+): Promise<ResultUser> => {
   let updatedRoles = newRole;
-  const user: User | null = await prismaClient.user.findUnique({
+  const user: ResultUser | null = await prismaClient.user.findUnique({
     where: {
       id: userId,
     },

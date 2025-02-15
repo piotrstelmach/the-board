@@ -62,6 +62,7 @@ describe('AuthenticationController', () => {
         expect.any(Object)
       );
       expect(res.json).toHaveBeenCalledWith({
+        ...exampleUser,
         accessToken: 'token',
       });
     });

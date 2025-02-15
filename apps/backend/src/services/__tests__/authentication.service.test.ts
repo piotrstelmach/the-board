@@ -85,7 +85,6 @@ describe('AuthenticationService', () => {
         email: exampleUser.email,
         name: exampleUser.name,
         roles: exampleUser.roles,
-        password: 'hashedPassword',
         createdAt: exampleUser.createdAt,
         updatedAt: exampleUser.updatedAt,
       });

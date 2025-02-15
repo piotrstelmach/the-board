@@ -1,6 +1,7 @@
 import {
   ErrorResponse,
   PaginatedResponse,
+  ResultUser,
   TypedRequestBody,
   TypedRequestQueryParams,
 } from '../types/global';
@@ -18,7 +19,6 @@ import {
   getUserById,
   updateExistingUser,
 } from '../services/user.service';
-import { User } from '@prisma/client';
 import { PaginationParams } from '../types/http/pagination.http';
 import {
   DEFAULT_PAGINATION_LIMIT,
@@ -28,7 +28,7 @@ import {
 export class UserController {
   async getUsers(
     req: TypedRequestQueryParams<PaginationParams>,
-    res: Response<PaginatedResponse<User> | ErrorResponse>
+    res: Response<PaginatedResponse<ResultUser> | ErrorResponse>
   ) {
     try {
       const page = Number(req.query.page);
@@ -49,7 +49,7 @@ export class UserController {
     }
   }
 
-  async getSingleUser(req: Request, res: Response<User | ErrorResponse>) {
+  async getSingleUser(req: Request, res: Response<ResultUser | ErrorResponse>) {
     if (!req.params?.userId) {
       return res.status(400).json({ error: 'User ID is required' });
     }
@@ -65,7 +65,7 @@ export class UserController {
 
   async createUser(
     req: TypedRequestBody<NewUserInput>,
-    res: Response<User | ErrorResponse>
+    res: Response<ResultUser | ErrorResponse>
   ) {
     if (!req.body) {
       return res.status(400).json({ error: 'Request body is required' });
@@ -83,7 +83,7 @@ export class UserController {
 
   async updateUser(
     req: TypedRequestBody<UpdateUserInput>,
-    res: Response<User | ErrorResponse>
+    res: Response<ResultUser | ErrorResponse>
   ) {
     if (!req.params?.userId) {
       return res.status(400).json({ error: 'User ID is required' });
@@ -106,7 +106,7 @@ export class UserController {
     }
   }
 
-  async deleteUser(req: Request, res: Response<User | ErrorResponse>) {
+  async deleteUser(req: Request, res: Response<ResultUser | ErrorResponse>) {
     if (!req.params?.userId) {
       return res.status(400).json({ error: 'User ID is required' });
     }
@@ -123,7 +123,7 @@ export class UserController {
 
   async giveUserRole(
     req: TypedRequestBody<GiveRoleInput>,
-    res: Response<User | ErrorResponse>
+    res: Response<ResultUser | ErrorResponse>
   ) {
     try {
       if (!req.params?.userId) {
