@@ -5,6 +5,7 @@ import { AuthorizationDispatchContext } from '../../../../stores/context/authori
 import { useNavigate } from 'react-router';
 import { RegisterResponse } from '../../types/validation/registerReponse';
 import { ActionTypes } from '../../../../stores/context/authorization/actionTypes';
+import { mapLoggedUser } from '../../../../services/userMapper';
 
 export const RegisterPage = () => {
   const dispatch = React.useContext(AuthorizationDispatchContext);
@@ -19,7 +20,7 @@ export const RegisterPage = () => {
     onSubmit: async ({ value }) => {
       try {
         const { data } = await unprotectedRoute<RegisterResponse>(
-          '/auth/register',
+          '/auth/signup',
           'post',
           null,
           value
@@ -32,6 +33,10 @@ export const RegisterPage = () => {
           dispatch({
             type: ActionTypes.SET_AUTHORIZED,
             payload: { isAuthorized: true },
+          });
+          dispatch({
+            type: ActionTypes.SET_USER,
+            payload: { user: mapLoggedUser(data) },
           });
           navigate('/dashboard');
         }
