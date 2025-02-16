@@ -3,6 +3,7 @@
 import { useRefreshToken } from '../hooks/useRefreshToken';
 // import { ThemeSwitchButton } from '../components/themeSwitchButton';
 import { Layout } from '../components/layout';
+import { AppRoutes } from './router';
 
 export function App() {
   useRefreshToken();
@@ -10,6 +11,7 @@ export function App() {
   return (
     <>
       <Layout />
+      <AppRoutes />
     </>
     // <div>
     //   <br />
