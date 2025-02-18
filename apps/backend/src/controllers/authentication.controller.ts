@@ -5,6 +5,7 @@ import {
 } from '../types/http/authentication.http';
 import { Response, Request } from 'express';
 import * as authService from '../services/authentication.service';
+import * as userService from '../services/user.service';
 import { AuthUserResult } from '../services/authentication.service';
 import jwt from 'jsonwebtoken';
 import {
@@ -105,7 +106,7 @@ export class AuthenticationController {
 
   async refreshToken(
     req: Request,
-    res: Response<TokenResponse | ErrorResponse>
+    res: Response<(AuthUserResult & TokenResponse) | ErrorResponse>
   ) {
     try {
       const refreshToken = req.cookies['refreshToken'];
@@ -125,6 +126,10 @@ export class AuthenticationController {
         expiresIn: '7d',
       });
 
+      const user: AuthUserResult | undefined = await userService.getUserById(
+        decoded.user_id
+      );
+
       return res
         .cookie('refreshToken', newRefreshToken, {
           httpOnly: true,
@@ -133,7 +138,7 @@ export class AuthenticationController {
           expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         })
         .status(200)
-        .json({ accessToken: newAccessToken });
+        .json({ accessToken: newAccessToken, ...user });
     } catch (e) {
       if (e instanceof Error) {
         return res.status(400).json({ error: e.message });
