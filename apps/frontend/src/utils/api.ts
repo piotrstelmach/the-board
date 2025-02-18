@@ -14,13 +14,13 @@ export const unprotectedRoute = <T>(
     data,
   });
 
-export const protectedRoute = (
+export const protectedRoute = <T>(
   path: string,
   method: string,
   params?: string,
   data?: object
 ) =>
-  axiosInstance.request({
+  axiosInstance.request<T>({
     headers: {
       authorization: 'Bearer ' + getAuthToken(),
     },

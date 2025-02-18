@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { AuthenticationController } from '../authentication.controller';
 import * as authService from '../../services/authentication.service';
+import * as userService from '../../services/user.service';
 import { AuthUserResult } from '../../services/authentication.service';
 import { TypedRequestBody } from '../../types/global';
 import {
@@ -10,6 +11,7 @@ import {
 import jwt from 'jsonwebtoken';
 
 jest.mock('../../services/authentication.service');
+jest.mock('../../services/user.service');
 jest.mock('jsonwebtoken');
 
 describe('AuthenticationController', () => {
@@ -33,7 +35,7 @@ describe('AuthenticationController', () => {
       json: jest.fn(),
       cookie: jest.fn().mockReturnThis(),
       clearCookie: jest.fn().mockReturnThis(),
-      send: jest.fn(), // Add this line
+      send: jest.fn(),
     };
     authenticationController = new AuthenticationController();
     jest.clearAllMocks();
@@ -164,6 +166,7 @@ describe('AuthenticationController', () => {
       req.cookies = { refreshToken: 'token' };
       (jwt.verify as jest.Mock).mockReturnValue({ user_id: 1 });
       (jwt.sign as jest.Mock).mockReturnValue('newToken');
+      (userService.getUserById as jest.Mock).mockResolvedValue(exampleUser);
 
       await authenticationController.refreshToken(
         req as Request,
@@ -177,7 +180,10 @@ describe('AuthenticationController', () => {
         expect.any(Object)
       );
       expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.json).toHaveBeenCalledWith({ accessToken: 'newToken' });
+      expect(res.json).toHaveBeenCalledWith({
+        accessToken: 'newToken',
+        ...exampleUser,
+      });
     });
 
     it('should handle errors', async () => {

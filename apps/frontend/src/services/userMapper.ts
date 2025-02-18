@@ -1,7 +1,6 @@
-import { LoginResponse } from '../features/authorization/types/validation/loginResponse';
-import { LoggedUser } from '../types/loggedUser';
+import { SessionUser } from '../types/sessionUser';
 
-export const mapLoggedUser = (user: LoginResponse): LoggedUser => {
+export const mapSessionUser = <T extends SessionUser>(user: T): SessionUser => {
   return {
     id: user.id,
     name: user.name,
