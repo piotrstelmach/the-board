@@ -5,7 +5,7 @@ import { AuthorizationDispatchContext } from '../../../../stores/context/authori
 import { useNavigate } from 'react-router';
 import { RegisterResponse } from '../../types/validation/registerReponse';
 import { ActionTypes } from '../../../../stores/context/authorization/actionTypes';
-import { mapLoggedUser } from '../../../../services/userMapper';
+import { mapSessionUser } from '../../../../services/userMapper';
 
 export const RegisterPage = () => {
   const dispatch = React.useContext(AuthorizationDispatchContext);
@@ -36,7 +36,7 @@ export const RegisterPage = () => {
           });
           dispatch({
             type: ActionTypes.SET_USER,
-            payload: { user: mapLoggedUser(data) },
+            payload: { user: mapSessionUser(data) },
           });
           navigate('/dashboard');
         }

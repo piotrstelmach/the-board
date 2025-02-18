@@ -4,7 +4,7 @@ import { unprotectedRoute } from '../../../../utils/api';
 import { LoginResponse } from '../../types/validation/loginResponse';
 import { AuthorizationDispatchContext } from '../../../../stores/context/authorization/authorizationContext';
 import { ActionTypes } from '../../../../stores/context/authorization/actionTypes';
-import { mapLoggedUser } from '../../../../services/userMapper';
+import { mapSessionUser } from '../../../../services/userMapper';
 import { useNavigate } from 'react-router';
 
 export const LoginPage = () => {
@@ -35,7 +35,7 @@ export const LoginPage = () => {
           });
           dispatch({
             type: ActionTypes.SET_USER,
-            payload: { user: mapLoggedUser(data) },
+            payload: { user: mapSessionUser(data) },
           });
           navigate('/dashboard');
         }
