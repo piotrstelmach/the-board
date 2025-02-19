@@ -1,7 +1,11 @@
 import { prismaClient } from '../utils/database';
 import { NewTaskInput, UpdateTaskInput } from '../types/http/task.http';
 import { redisClient } from '../utils/redisClient';
-import { mapRedisHash, saveToRedisHash } from '../utils/redisCache';
+import {
+  invalidatePaginatedCache,
+  mapRedisHash,
+  saveToRedisHash,
+} from '../utils/redisCache';
 import { Task } from '@prisma/client';
 
 export const TASK_CACHE_NAME = 'task';
@@ -56,11 +60,16 @@ export const getTaskById = async (taskId: number) => {
 };
 
 export const createTask = async (data: NewTaskInput) => {
-  return prismaClient.task.create({
-    data: {
-      ...data,
-    },
-  });
+  try {
+    await invalidatePaginatedCache(PAGINATE_TASK_CACHE_NAME);
+    return prismaClient.task.create({
+      data: {
+        ...data,
+      },
+    });
+  } catch (e) {
+    throw new Error('Error creating task');
+  }
 };
 
 export const updateTask = async (taskId: number, data: UpdateTaskInput) => {
@@ -73,15 +82,20 @@ export const updateTask = async (taskId: number, data: UpdateTaskInput) => {
   if (!task) {
     throw new Error('Task not found');
   } else {
-    return prismaClient.task.update({
-      where: {
-        id: taskId,
-      },
-      data: {
-        ...task,
-        ...data,
-      },
-    });
+    try {
+      await invalidatePaginatedCache(PAGINATE_TASK_CACHE_NAME);
+      return prismaClient.task.update({
+        where: {
+          id: taskId,
+        },
+        data: {
+          ...task,
+          ...data,
+        },
+      });
+    } catch (e) {
+      throw new Error('Error updating task');
+    }
   }
 };
 
@@ -95,10 +109,15 @@ export const deleteTask = async (taskId: number) => {
   if (!task) {
     throw new Error('Task not found');
   } else {
-    return prismaClient.task.delete({
-      where: {
-        id: taskId,
-      },
-    });
+    try {
+      await invalidatePaginatedCache(PAGINATE_TASK_CACHE_NAME);
+      return prismaClient.task.delete({
+        where: {
+          id: taskId,
+        },
+      });
+    } catch (e) {
+      throw new Error('Error deleting task');
+    }
   }
 };
