@@ -3,7 +3,11 @@ import { Task } from '@prisma/client';
 import { NewTaskInput, UpdateTaskInput } from '../../types/http/task.http';
 import * as taskService from '../task.service';
 import { redisClient } from '../../utils/redisClient';
-import { mapRedisHash, saveToRedisHash } from '../../utils/redisCache';
+import {
+  mapRedisHash,
+  saveToRedisHash,
+  invalidatePaginatedCache,
+} from '../../utils/redisCache';
 
 jest.mock('../../utils/database', () => ({
   prismaClient: {
@@ -120,6 +124,19 @@ describe('TaskService', () => {
       (prismaClient.task.findUnique as jest.Mock).mockResolvedValue(
         exampleTask
       );
+      (saveToRedisHash as jest.Mock).mockReturnValue({
+        id: '1',
+        title: 'Test Task',
+        description: 'This is a test task',
+        status: 'TODO',
+        priority: 'LOW',
+        storyPoints: '1',
+        assigneeId: '1',
+        sprintId: null,
+        storyId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
 
       const task = await taskService.getTaskById(1);
 
@@ -127,6 +144,10 @@ describe('TaskService', () => {
       expect(prismaClient.task.findUnique).toHaveBeenCalledWith({
         where: { id: 1 },
       });
+      expect(redisClient.hSet).toHaveBeenCalledWith(
+        'task:1',
+        expect.any(Object)
+      );
       expect(task).toEqual(exampleTask);
     });
 
@@ -154,6 +175,7 @@ describe('TaskService', () => {
       expect(prismaClient.task.create).toHaveBeenCalledWith({
         data: newTaskInput,
       });
+      expect(invalidatePaginatedCache).toHaveBeenCalledWith('pagination:task');
       expect(task).toEqual(exampleTask);
     });
   });
@@ -181,6 +203,7 @@ describe('TaskService', () => {
         where: { id: 1 },
         data: { ...exampleTask, ...updateTaskInput },
       });
+      expect(invalidatePaginatedCache).toHaveBeenCalledWith('pagination:task');
       expect(task).toEqual({ ...exampleTask, ...updateTaskInput });
     });
 
@@ -211,6 +234,7 @@ describe('TaskService', () => {
       expect(prismaClient.task.delete).toHaveBeenCalledWith({
         where: { id: 1 },
       });
+      expect(invalidatePaginatedCache).toHaveBeenCalledWith('pagination:task');
       expect(task).toEqual(exampleTask);
     });
 

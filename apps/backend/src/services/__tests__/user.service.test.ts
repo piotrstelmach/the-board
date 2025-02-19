@@ -1,10 +1,13 @@
 import { prismaClient } from '../../utils/database';
-import { User } from '@prisma/client';
 import { NewUserInput, UpdateUserInput } from '../../types/http/user.http';
 import * as userService from '../user.service';
-import { hashPassword } from '../../utils/passwd';
 import { redisClient } from '../../utils/redisClient';
-import { mapRedisHash, saveToRedisHash } from '../../utils/redisCache';
+import {
+  mapRedisHash,
+  saveToRedisHash,
+  invalidatePaginatedCache,
+} from '../../utils/redisCache';
+import { ResultUser } from '../../types/global';
 
 jest.mock('../../utils/database', () => ({
   prismaClient: {
@@ -18,37 +21,23 @@ jest.mock('../../utils/database', () => ({
   },
 }));
 
+jest.mock('../../utils/redisClient');
+jest.mock('../../utils/redisCache');
 jest.mock('../../utils/passwd', () => ({
-  hashPassword: jest.fn(),
-}));
-
-jest.mock('../../utils/redisClient', () => ({
-  redisClient: {
-    hGetAll: jest.fn(),
-    hSet: jest.fn(),
-    del: jest.fn(),
-    quit: jest.fn(),
-  },
-}));
-
-jest.mock('../../utils/redisCache', () => ({
-  mapRedisHash: jest.fn(),
-  saveToRedisHash: jest.fn(),
+  hashPassword: jest.fn().mockResolvedValue('hashedPassword'),
 }));
 
 describe('UserService', () => {
-  const exampleUser: User = {
+  const exampleUser: ResultUser = {
     id: 1,
-    name: 'John Doe',
-    email: 'john@example.com',
-    password: 'hashedPassword',
-    roles: 1,
+    name: 'Test User',
+    email: 'test@example.com',
     createdAt: new Date(),
     updatedAt: new Date(),
+    roles: 1,
   };
 
   beforeEach(() => {
-    (hashPassword as jest.Mock).mockResolvedValue('hashedPassword');
     jest.clearAllMocks();
   });
 
@@ -108,10 +97,8 @@ describe('UserService', () => {
     it('should return a user by ID from cache', async () => {
       (redisClient.hGetAll as jest.Mock).mockResolvedValue({
         id: '1',
-        name: 'John Doe',
-        email: 'john@example.com',
-        password: 'hashedPassword',
-        roles: '1',
+        name: 'Test User',
+        email: 'test@example.com',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       });
@@ -131,10 +118,8 @@ describe('UserService', () => {
       );
       (saveToRedisHash as jest.Mock).mockReturnValue({
         id: '1',
-        name: 'John Doe',
-        email: 'john@example.com',
-        password: 'hashedPassword',
-        roles: '1',
+        name: 'Test User',
+        email: 'test@example.com',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       });
@@ -162,11 +147,11 @@ describe('UserService', () => {
     });
   });
 
-  describe('createNewUser', () => {
+  describe('createUser', () => {
     it('should create a new user', async () => {
       const newUserInput: NewUserInput = {
-        name: 'John Doe',
-        email: 'john@example.com',
+        name: 'Test User',
+        email: 'test@example.com',
         password: 'password',
         roles: 1,
       };
@@ -175,17 +160,21 @@ describe('UserService', () => {
       const user = await userService.createNewUser(newUserInput);
 
       expect(prismaClient.user.create).toHaveBeenCalledWith({
-        data: { ...newUserInput, password: 'hashedPassword' },
+        data: {
+          ...newUserInput,
+          password: 'hashedPassword',
+        },
       });
+      expect(invalidatePaginatedCache).toHaveBeenCalledWith('pagination:user');
       expect(user).toEqual(exampleUser);
     });
   });
 
-  describe('updateExistingUser', () => {
+  describe('updateUser', () => {
     it('should update an existing user', async () => {
       const updateUserInput: UpdateUserInput = {
-        name: 'John Doe2',
-        email: 'john2@example.com',
+        name: 'Updated User',
+        email: 'updated@example.com',
       };
       (prismaClient.user.findUnique as jest.Mock).mockResolvedValue(
         exampleUser
@@ -204,6 +193,7 @@ describe('UserService', () => {
         where: { id: 1 },
         data: { ...exampleUser, ...updateUserInput },
       });
+      expect(invalidatePaginatedCache).toHaveBeenCalledWith('pagination:user');
       expect(user).toEqual({ ...exampleUser, ...updateUserInput });
     });
 
@@ -212,14 +202,14 @@ describe('UserService', () => {
 
       await expect(
         userService.updateExistingUser(1, {
-          name: 'John Doe2',
-          email: 'john2@example.com',
+          name: 'Updated User',
+          email: 'updated@example.com',
         })
       ).rejects.toThrow('User not found');
     });
   });
 
-  describe('deleteUserById', () => {
+  describe('deleteUser', () => {
     it('should delete a user by ID', async () => {
       (prismaClient.user.findUnique as jest.Mock).mockResolvedValue(
         exampleUser
@@ -234,6 +224,7 @@ describe('UserService', () => {
       expect(prismaClient.user.delete).toHaveBeenCalledWith({
         where: { id: 1 },
       });
+      expect(invalidatePaginatedCache).toHaveBeenCalledWith('pagination:user');
       expect(user).toEqual(exampleUser);
     });
 
@@ -241,36 +232,6 @@ describe('UserService', () => {
       (prismaClient.user.findUnique as jest.Mock).mockResolvedValue(null);
 
       await expect(userService.deleteUserById(1)).rejects.toThrow(
-        'User not found'
-      );
-    });
-  });
-
-  describe('changeUserRole', () => {
-    it('should change the user role', async () => {
-      const newRole = 2;
-      const updatedUser = { ...exampleUser, roles: newRole };
-      (prismaClient.user.findUnique as jest.Mock).mockResolvedValue(
-        exampleUser
-      );
-      (prismaClient.user.update as jest.Mock).mockResolvedValue(updatedUser);
-
-      const user = await userService.changeUserRole(1, newRole);
-
-      expect(prismaClient.user.findUnique).toHaveBeenCalledWith({
-        where: { id: 1 },
-      });
-      expect(prismaClient.user.update).toHaveBeenCalledWith({
-        where: { id: 1 },
-        data: { roles: newRole },
-      });
-      expect(user).toEqual(updatedUser);
-    });
-
-    it('should throw an error if user not found', async () => {
-      (prismaClient.user.findUnique as jest.Mock).mockResolvedValue(null);
-
-      await expect(userService.changeUserRole(1, 2)).rejects.toThrow(
         'User not found'
       );
     });

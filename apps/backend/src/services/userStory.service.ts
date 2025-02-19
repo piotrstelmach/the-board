@@ -4,7 +4,11 @@ import {
   UpdateUserStoryInput,
 } from '../types/http/userStory.http';
 import { redisClient } from '../utils/redisClient';
-import { mapRedisHash, saveToRedisHash } from '../utils/redisCache';
+import {
+  invalidatePaginatedCache,
+  mapRedisHash,
+  saveToRedisHash,
+} from '../utils/redisCache';
 import { UserStory } from '@prisma/client';
 
 const STORY_CACHE_NAME = 'userStory';
@@ -53,6 +57,10 @@ export const getSingleUserStory = async (userStoryId: number) => {
       if (!userStory) {
         throw new Error('User story not found');
       } else {
+        await redisClient.hSet(
+          `${STORY_CACHE_NAME}:${userStoryId}`,
+          saveToRedisHash<UserStory>(userStory)
+        );
         return userStory;
       }
     }
@@ -62,11 +70,16 @@ export const getSingleUserStory = async (userStoryId: number) => {
 };
 
 export const createUserStory = async (data: NewUserStoryInput) => {
-  return prismaClient.userStory.create({
-    data: {
-      ...data,
-    },
-  });
+  try {
+    await invalidatePaginatedCache(PAGINATE_STORY_CACHE_NAME);
+    return prismaClient.userStory.create({
+      data: {
+        ...data,
+      },
+    });
+  } catch (e) {
+    throw new Error('Error creating user story');
+  }
 };
 
 export const updateUserStory = async (
@@ -82,15 +95,20 @@ export const updateUserStory = async (
   if (!userStory) {
     throw new Error('User story not found');
   } else {
-    return prismaClient.userStory.update({
-      where: {
-        id: userStoryId,
-      },
-      data: {
-        ...userStory,
-        ...data,
-      },
-    });
+    try {
+      await invalidatePaginatedCache(PAGINATE_STORY_CACHE_NAME);
+      return prismaClient.userStory.update({
+        where: {
+          id: userStoryId,
+        },
+        data: {
+          ...userStory,
+          ...data,
+        },
+      });
+    } catch (e) {
+      throw new Error('Error updating user story');
+    }
   }
 };
 
@@ -104,10 +122,15 @@ export const deleteUserStory = async (userStoryId: number) => {
   if (!userStory) {
     throw new Error('User story not found');
   } else {
-    return prismaClient.userStory.delete({
-      where: {
-        id: userStoryId,
-      },
-    });
+    try {
+      await invalidatePaginatedCache(PAGINATE_STORY_CACHE_NAME);
+      return prismaClient.userStory.delete({
+        where: {
+          id: userStoryId,
+        },
+      });
+    } catch (e) {
+      throw new Error('Error deleting user story');
+    }
   }
 };
