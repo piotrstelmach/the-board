@@ -2,7 +2,11 @@ import { prismaClient } from '../../utils/database';
 import { Sprint } from '@prisma/client';
 import * as sprintService from '../sprint.service';
 import { redisClient } from '../../utils/redisClient';
-import { mapRedisHash, saveToRedisHash } from '../../utils/redisCache';
+import {
+  mapRedisHash,
+  saveToRedisHash,
+  invalidatePaginatedCache,
+} from '../../utils/redisCache';
 
 jest.mock('../../utils/database', () => ({
   prismaClient: {
@@ -16,7 +20,12 @@ jest.mock('../../utils/database', () => ({
   },
 }));
 
-jest.mock('../../utils/redisClient');
+jest.mock('../../utils/redisClient', () => ({
+  redisClient: {
+    hGetAll: jest.fn(),
+    hSet: jest.fn(),
+  },
+}));
 jest.mock('../../utils/redisCache');
 
 describe('SprintService', () => {
@@ -56,9 +65,8 @@ describe('SprintService', () => {
       (prismaClient.sprint.findMany as jest.Mock).mockResolvedValue([
         exampleSprint,
       ]);
-      (saveToRedisHash as jest.Mock).mockReturnValue({
-        '0': JSON.stringify(exampleSprint),
-      });
+      const mockHashData = { '0': JSON.stringify(exampleSprint) };
+      (saveToRedisHash as jest.Mock).mockReturnValue(mockHashData);
 
       const sprints = await sprintService.getAllSprints(1, 10);
 
@@ -69,9 +77,10 @@ describe('SprintService', () => {
         skip: 0,
         take: 10,
       });
+      expect(saveToRedisHash).toHaveBeenCalledWith([exampleSprint]);
       expect(redisClient.hSet).toHaveBeenCalledWith(
         'pagination:sprint:page1limit:10',
-        expect.any(Object)
+        mockHashData
       );
       expect(sprints).toEqual([exampleSprint]);
     });
@@ -94,10 +103,10 @@ describe('SprintService', () => {
         name: 'Sprint 1',
         goal: 'Complete tasks',
         totalPoints: '10',
-        startDate: new Date().toISOString(),
-        endDate: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        startDate: exampleSprint.startDate,
+        endDate: exampleSprint.endDate,
+        createdAt: exampleSprint.createdAt,
+        updatedAt: exampleSprint.updatedAt,
       });
       (mapRedisHash as jest.Mock).mockReturnValue(exampleSprint);
 
@@ -131,6 +140,14 @@ describe('SprintService', () => {
         'Sprint not found'
       );
     });
+
+    it('should throw an error if there is an exception', async () => {
+      (redisClient.hGetAll as jest.Mock).mockRejectedValue(new Error('Database error'));
+
+      await expect(sprintService.getSprintById(1)).rejects.toThrow(
+        'Sprint not found'
+      );
+    });
   });
 
   describe('createNewSprint', () => {
@@ -144,13 +161,34 @@ describe('SprintService', () => {
       (prismaClient.sprint.create as jest.Mock).mockResolvedValue(
         exampleSprint
       );
+      (invalidatePaginatedCache as jest.Mock).mockResolvedValue(undefined);
 
       const sprint = await sprintService.createNewSprint(newSprintInput);
 
+      expect(invalidatePaginatedCache).toHaveBeenCalledWith(
+        'pagination:sprint'
+      );
       expect(prismaClient.sprint.create).toHaveBeenCalledWith({
         data: newSprintInput,
       });
       expect(sprint).toEqual(exampleSprint);
+    });
+
+    it('should throw an error if creating sprint fails', async () => {
+      const newSprintInput = {
+        name: 'Sprint 1',
+        goal: 'Complete tasks',
+        startDate: new Date(),
+        endDate: new Date(),
+      };
+      (invalidatePaginatedCache as jest.Mock).mockResolvedValue(undefined);
+      (prismaClient.sprint.create as jest.Mock).mockRejectedValue(
+        new Error('Error creating sprint')
+      );
+
+      await expect(sprintService.createNewSprint(newSprintInput)).rejects.toThrow(
+        'Error creating sprint'
+      );
     });
   });
 
@@ -167,6 +205,7 @@ describe('SprintService', () => {
         ...exampleSprint,
         ...updateSprintInput,
       });
+      (invalidatePaginatedCache as jest.Mock).mockResolvedValue(undefined);
 
       const sprint = await sprintService.updateExistingSprint(
         1,
@@ -176,9 +215,15 @@ describe('SprintService', () => {
       expect(prismaClient.sprint.findUnique).toHaveBeenCalledWith({
         where: { id: 1 },
       });
+      expect(invalidatePaginatedCache).toHaveBeenCalledWith(
+        'pagination:sprint'
+      );
       expect(prismaClient.sprint.update).toHaveBeenCalledWith({
         where: { id: 1 },
-        data: { ...exampleSprint, ...updateSprintInput },
+        data: {
+          ...exampleSprint,
+          ...updateSprintInput,
+        },
       });
       expect(sprint).toEqual({ ...exampleSprint, ...updateSprintInput });
     });
@@ -193,6 +238,24 @@ describe('SprintService', () => {
         })
       ).rejects.toThrow('Sprint not found');
     });
+
+    it('should throw an error if updating sprint fails', async () => {
+      const updateSprintInput = {
+        name: 'Updated Sprint',
+        goal: 'Updated goal',
+      };
+      (prismaClient.sprint.findUnique as jest.Mock).mockResolvedValue(
+        exampleSprint
+      );
+      (invalidatePaginatedCache as jest.Mock).mockResolvedValue(undefined);
+      (prismaClient.sprint.update as jest.Mock).mockRejectedValue(
+        new Error('Error updating sprint')
+      );
+
+      await expect(
+        sprintService.updateExistingSprint(1, updateSprintInput)
+      ).rejects.toThrow('Error updating sprint');
+    });
   });
 
   describe('deleteSprintById', () => {
@@ -203,12 +266,16 @@ describe('SprintService', () => {
       (prismaClient.sprint.delete as jest.Mock).mockResolvedValue(
         exampleSprint
       );
+      (invalidatePaginatedCache as jest.Mock).mockResolvedValue(undefined);
 
       const sprint = await sprintService.deleteSprintById(1);
 
       expect(prismaClient.sprint.findUnique).toHaveBeenCalledWith({
         where: { id: 1 },
       });
+      expect(invalidatePaginatedCache).toHaveBeenCalledWith(
+        'pagination:sprint'
+      );
       expect(prismaClient.sprint.delete).toHaveBeenCalledWith({
         where: { id: 1 },
       });
@@ -220,6 +287,20 @@ describe('SprintService', () => {
 
       await expect(sprintService.deleteSprintById(1)).rejects.toThrow(
         'Sprint not found'
+      );
+    });
+
+    it('should throw an error if deleting sprint fails', async () => {
+      (prismaClient.sprint.findUnique as jest.Mock).mockResolvedValue(
+        exampleSprint
+      );
+      (invalidatePaginatedCache as jest.Mock).mockResolvedValue(undefined);
+      (prismaClient.sprint.delete as jest.Mock).mockRejectedValue(
+        new Error('Error deleting sprint')
+      );
+
+      await expect(sprintService.deleteSprintById(1)).rejects.toThrow(
+        'Error deleting sprint'
       );
     });
   });

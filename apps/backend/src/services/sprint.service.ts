@@ -1,6 +1,10 @@
 import { prismaClient } from '../utils/database';
 import { redisClient } from '../utils/redisClient';
-import { mapRedisHash, saveToRedisHash } from '../utils/redisCache';
+import {
+  invalidatePaginatedCache,
+  mapRedisHash,
+  saveToRedisHash,
+} from '../utils/redisCache';
 import { Sprint } from '@prisma/client';
 
 const SPRINT_CACHE_NAME = 'sprint';
@@ -55,11 +59,16 @@ export const getSprintById = async (sprintId: number) => {
 };
 
 export const createNewSprint = async (data: any) => {
-  return prismaClient.sprint.create({
-    data: {
-      ...data,
-    },
-  });
+  try {
+    await invalidatePaginatedCache(SPRINT_PAGINATE_CACHE_NAME);
+    return prismaClient.sprint.create({
+      data: {
+        ...data,
+      },
+    });
+  } catch (e) {
+    throw new Error('Error creating sprint');
+  }
 };
 
 export const updateExistingSprint = async (sprintId: number, data: any) => {
@@ -72,15 +81,20 @@ export const updateExistingSprint = async (sprintId: number, data: any) => {
   if (!sprint) {
     throw new Error('Sprint not found');
   } else {
-    return prismaClient.sprint.update({
-      where: {
-        id: sprintId,
-      },
-      data: {
-        ...sprint,
-        ...data,
-      },
-    });
+    try {
+      await invalidatePaginatedCache(SPRINT_PAGINATE_CACHE_NAME);
+      return prismaClient.sprint.update({
+        where: {
+          id: sprintId,
+        },
+        data: {
+          ...sprint,
+          ...data,
+        },
+      });
+    } catch (e) {
+      throw new Error('Error updating sprint');
+    }
   }
 };
 
@@ -94,10 +108,15 @@ export const deleteSprintById = async (sprintId: number) => {
   if (!sprint) {
     throw new Error('Sprint not found');
   } else {
-    return prismaClient.sprint.delete({
-      where: {
-        id: sprintId,
-      },
-    });
+    try {
+      await invalidatePaginatedCache(SPRINT_PAGINATE_CACHE_NAME);
+      return prismaClient.sprint.delete({
+        where: {
+          id: sprintId,
+        },
+      });
+    } catch (e) {
+      throw new Error('Error deleting sprint');
+    }
   }
 };

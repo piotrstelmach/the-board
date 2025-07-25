@@ -1,12 +1,16 @@
 import { prismaClient } from '../../utils/database';
-import { UserStory } from '@prisma/client';
-import * as userStoryService from '../userStory.service';
+import { StoryStatus, UserStory } from '@prisma/client';
 import {
   NewUserStoryInput,
   UpdateUserStoryInput,
 } from '../../types/http/userStory.http';
+import * as userStoryService from '../userStory.service';
 import { redisClient } from '../../utils/redisClient';
-import { mapRedisHash, saveToRedisHash } from '../../utils/redisCache';
+import {
+  mapRedisHash,
+  saveToRedisHash,
+  invalidatePaginatedCache,
+} from '../../utils/redisCache';
 
 jest.mock('../../utils/database', () => ({
   prismaClient: {
@@ -26,12 +30,12 @@ jest.mock('../../utils/redisCache');
 describe('UserStoryService', () => {
   const exampleUserStory: UserStory = {
     id: 1,
-    title: 'User Story 1',
-    description: 'Description of user story 1',
-    priority: 'MEDIUM',
-    status: 'PLANNED',
-    epicId: 1,
-    storyPoints: 10,
+    title: 'Test User Story',
+    description: 'This is a test user story',
+    status: StoryStatus.PLANNED,
+    priority: 'LOW',
+    storyPoints: 1,
+    epicId: null,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -40,7 +44,7 @@ describe('UserStoryService', () => {
     jest.clearAllMocks();
   });
 
-  describe('getUserStories', () => {
+  describe('getAllUserStories', () => {
     it('should return all user stories from cache', async () => {
       (redisClient.hGetAll as jest.Mock).mockResolvedValue({
         '0': JSON.stringify(exampleUserStory),
@@ -92,16 +96,17 @@ describe('UserStoryService', () => {
     });
   });
 
-  describe('getSingleUserStory', () => {
+  describe('getUserStoryById', () => {
     it('should return a user story by ID from cache', async () => {
       (redisClient.hGetAll as jest.Mock).mockResolvedValue({
         id: '1',
-        title: 'User Story 1',
-        description: 'Description of user story 1',
-        priority: 'MEDIUM',
-        status: 'PLANNED',
-        epicId: '1',
-        storyPoints: '10',
+        title: 'Test User Story',
+        description: 'This is a test user story',
+        status: 'TODO',
+        priority: 'LOW',
+        storyPoints: '1',
+        assigneeId: '1',
+        sprintId: null,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       });
@@ -119,6 +124,18 @@ describe('UserStoryService', () => {
       (prismaClient.userStory.findUnique as jest.Mock).mockResolvedValue(
         exampleUserStory
       );
+      (saveToRedisHash as jest.Mock).mockReturnValue({
+        id: '1',
+        title: 'Test User Story',
+        description: 'This is a test user story',
+        status: 'TODO',
+        priority: 'LOW',
+        storyPoints: '1',
+        assigneeId: '1',
+        sprintId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
 
       const userStory = await userStoryService.getSingleUserStory(1);
 
@@ -126,6 +143,10 @@ describe('UserStoryService', () => {
       expect(prismaClient.userStory.findUnique).toHaveBeenCalledWith({
         where: { id: 1 },
       });
+      expect(redisClient.hSet).toHaveBeenCalledWith(
+        'userStory:1',
+        expect.any(Object)
+      );
       expect(userStory).toEqual(exampleUserStory);
     });
 
@@ -142,8 +163,9 @@ describe('UserStoryService', () => {
   describe('createUserStory', () => {
     it('should create a new user story', async () => {
       const newUserStoryInput: NewUserStoryInput = {
-        title: 'User Story 1',
-        description: 'Description of user story 1',
+        title: 'Test User Story',
+        description: 'This is a test user story',
+        storyPoints: 1,
       };
       (prismaClient.userStory.create as jest.Mock).mockResolvedValue(
         exampleUserStory
@@ -156,6 +178,9 @@ describe('UserStoryService', () => {
       expect(prismaClient.userStory.create).toHaveBeenCalledWith({
         data: newUserStoryInput,
       });
+      expect(invalidatePaginatedCache).toHaveBeenCalledWith(
+        'pagination:userStory'
+      );
       expect(userStory).toEqual(exampleUserStory);
     });
   });
@@ -186,6 +211,9 @@ describe('UserStoryService', () => {
         where: { id: 1 },
         data: { ...exampleUserStory, ...updateUserStoryInput },
       });
+      expect(invalidatePaginatedCache).toHaveBeenCalledWith(
+        'pagination:userStory'
+      );
       expect(userStory).toEqual({
         ...exampleUserStory,
         ...updateUserStoryInput,
@@ -221,6 +249,9 @@ describe('UserStoryService', () => {
       expect(prismaClient.userStory.delete).toHaveBeenCalledWith({
         where: { id: 1 },
       });
+      expect(invalidatePaginatedCache).toHaveBeenCalledWith(
+        'pagination:userStory'
+      );
       expect(userStory).toEqual(exampleUserStory);
     });
 
