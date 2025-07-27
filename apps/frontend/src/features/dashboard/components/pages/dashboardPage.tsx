@@ -1,5 +1,7 @@
 import { Board, Task } from '../board';
-import { useState } from 'react';
+import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { getAllTasks } from '../../queries/getAllTasks';
 
 const mockTasks: Task[] = [
   {
@@ -46,6 +48,18 @@ const mockTasks: Task[] = [
 
 const DashboardPage = () => {
   const [tasks, setTasks] = useState(mockTasks);
+  const [taskPage, setTaskPage] = useState(1);
+
+  const { data, isPending } = useQuery({
+    queryKey: ['tasks', taskPage],
+    queryFn: () => getAllTasks(taskPage),
+  });
+
+  React.useEffect(() => {
+    if (data && data.next) {
+      setTaskPage(data.next);
+    }
+  }, [data]);
 
   const handleAddTask = (status: string) => {
     const newTask: Task = {
@@ -68,11 +82,14 @@ const DashboardPage = () => {
         <h1 className="text-2xl font-bold mb-6 text-gray-800 dark:text-gray-100">
           Project Dashboard
         </h1>
-        <Board
-          tasks={tasks}
-          onAddTask={handleAddTask}
-          onTaskClick={handleTaskClick}
-        />
+        {isPending && <div>Loading...</div>}
+        {data && (
+          <Board
+            tasks={tasks}
+            onAddTask={handleAddTask}
+            onTaskClick={handleTaskClick}
+          />
+        )}
       </div>
     </div>
   );

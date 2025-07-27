@@ -2,17 +2,7 @@ import { FC } from 'react';
 import { Column } from './column';
 import { Card } from './card';
 import { AddTaskButton } from './addTaskButton';
-
-export interface Task {
-  id: string;
-  title: string;
-  description?: string;
-  status: 'todo' | 'inprogress' | 'done';
-  assignee?: string;
-  tags?: string[];
-  dueDate?: string;
-  priority?: 'low' | 'medium' | 'high';
-}
+import { Task } from '../types/task';
 
 interface BoardProps {
   tasks: Task[];
@@ -22,9 +12,9 @@ interface BoardProps {
 
 export const Board: FC<BoardProps> = ({ tasks, onTaskClick, onAddTask }) => {
   const grouped = {
-    todo: tasks.filter((t) => t.status === 'todo'),
-    inprogress: tasks.filter((t) => t.status === 'inprogress'),
-    done: tasks.filter((t) => t.status === 'done'),
+    todo: tasks.filter((t) => t.status === 'TODO'),
+    inprogress: tasks.filter((t) => t.status === 'IN_PROGRESS'),
+    done: tasks.filter((t) => t.status === 'DONE'),
   };
 
   return (

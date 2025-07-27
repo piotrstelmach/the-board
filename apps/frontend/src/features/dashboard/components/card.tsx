@@ -1,13 +1,14 @@
 import { FC } from 'react';
+import { TaskPriority, TaskStatus } from '@prisma/client';
 
 interface CardProps {
   title: string;
   description?: string;
-  status: 'todo' | 'inprogress' | 'done';
+  status: TaskStatus;
   assignee?: string;
   tags?: string[];
   dueDate?: string;
-  priority?: 'low' | 'medium' | 'high';
+  priority?: TaskPriority;
   onClick?: () => void;
 }
 
@@ -22,10 +23,11 @@ export const Card: FC<CardProps> = ({
   onClick,
 }) => {
   const priorityColor = {
-    low: 'bg-green-500',
-    medium: 'bg-yellow-500',
-    high: 'bg-red-500',
-  }[priority || 'low'];
+    LOW: 'bg-green-500',
+    MEDIUM: 'bg-yellow-500',
+    HIGH: 'bg-red-500',
+    CRITICAL: 'bg-red-600',
+  }[priority || 'LOW'];
 
   return (
     <div
