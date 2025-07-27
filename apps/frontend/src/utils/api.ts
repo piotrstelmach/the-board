@@ -17,7 +17,7 @@ export const unprotectedRoute = <T>(
 export const protectedRoute = <T>(
   path: string,
   method: string,
-  params?: string,
+  params?: object,
   data?: object
 ) =>
   axiosInstance.request<T>({
